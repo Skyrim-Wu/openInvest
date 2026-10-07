@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0](https://github.com/longsizhuo/openInvest/compare/v0.34.1...v0.35.0) (2026-10-07)
+
+
+### Features
+
+* **web:** 委员会详情 HTML 页 + 前瞻舰队只用当日 bar（收编生产未提交改动） ([#251](https://github.com/longsizhuo/openInvest/issues/251)) ([0c9ac63](https://github.com/longsizhuo/openInvest/commit/0c9ac63a765855dda260f5e889e1d0bae1bbe07b))
+
 ## [0.34.1](https://github.com/longsizhuo/openInvest/compare/v0.34.0...v0.34.1) (2026-10-07)
 
 
