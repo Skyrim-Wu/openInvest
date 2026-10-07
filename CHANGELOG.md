@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.1](https://github.com/longsizhuo/openInvest/compare/v0.34.0...v0.34.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* 修好事件信号管道两处断点（新闻哨兵卡死 21 天 / 港股 ticker 漏召回） ([#250](https://github.com/longsizhuo/openInvest/issues/250)) ([9f9a8b9](https://github.com/longsizhuo/openInvest/commit/9f9a8b992ab9b5ce8058b6a9ad9a42a5a9b94064))
+
 ## [0.34.0](https://github.com/longsizhuo/openInvest/compare/v0.33.1...v0.34.0) (2026-07-24)
 
 
