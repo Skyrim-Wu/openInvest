@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.1](https://github.com/longsizhuo/openInvest/compare/v0.37.0...v0.37.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **email:** escape untrusted news text before it enters email markdown ([#290](https://github.com/longsizhuo/openInvest/issues/290)) ([9ef3d11](https://github.com/longsizhuo/openInvest/commit/9ef3d11e9ca71a95186c3d7f360db8e1f4a07b3b))
+
 ## [0.37.0](https://github.com/longsizhuo/openInvest/compare/v0.36.4...v0.37.0) (2026-10-08)
 
 
