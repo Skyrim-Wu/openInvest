@@ -248,3 +248,76 @@ def test_schema_migration_idempotent(tmp_path):
     # 已写入的数据不丢失
     assert row["symbol"] == "NDQ.AX"
     assert row["intended_date"] == "2026-05-10"
+
+
+def test_sync_pending_migration_tolerates_concurrent_add(tmp_path, monkeypatch):
+    """web/MCP/scheduler 重启后同时初始化：PRAGMA 查到缺列、ALTER 时另一进程已加 → 不能炸。"""
+    import sqlite3
+
+    import openinvest.db.trades_db as tdb
+
+    path = tmp_path / "trades.db"
+    TradesDB(str(path))  # 列已存在（模拟"另一个进程先加完"）
+
+    real_connect = sqlite3.connect
+
+    class _Cur:
+        def __init__(self, c):
+            self._c = c
+
+        def execute(self, sql, *a):
+            if sql.startswith("PRAGMA table_info(trades)"):
+                return [r for r in self._c.execute(sql, *a) if r[1] != "sync_pending"]
+            return self._c.execute(sql, *a)
+
+        def __getattr__(self, n):
+            return getattr(self._c, n)
+
+    class _Conn:
+        def __init__(self, c):
+            self._c = c
+
+        def cursor(self):
+            return _Cur(self._c.cursor())
+
+        def __getattr__(self, n):
+            return getattr(self._c, n)
+
+    monkeypatch.setattr(tdb.sqlite3, "connect", lambda *a, **k: _Conn(real_connect(*a, **k)))
+    db = TradesDB(str(path))  # 旧码：OperationalError duplicate column name
+    assert db is not None
+
+
+
+def test_concurrent_first_open_of_legacy_db_migrates_cleanly(tmp_path):
+    """web/MCP/scheduler（及线程池里的 web 端点）重启后同时首开未迁移的旧库：不能有一个失败。"""
+    import sqlite3
+    import threading
+
+    errors = []
+    for i in range(15):
+        path = tmp_path / f"legacy{i}.db"
+        c = sqlite3.connect(path)
+        c.execute("PRAGMA journal_mode=WAL")  # 生产库自 #104 起就是 WAL
+        c.execute(
+            "CREATE TABLE trades (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, "
+            "verdict_id TEXT, symbol TEXT, action TEXT, quantity REAL, price REAL, currency TEXT, "
+            "note TEXT, status TEXT, intended_date TEXT)"
+        )
+        c.commit()
+        c.close()
+        barrier = threading.Barrier(4)
+
+        def _open():
+            barrier.wait()
+            try:
+                TradesDB(str(path))
+            except Exception as e:  # noqa: BLE001
+                errors.append(repr(e))
+
+        ts = [threading.Thread(target=_open) for _ in range(4)]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+    assert errors == []
