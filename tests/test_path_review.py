@@ -153,6 +153,65 @@ def test_run_live_path_end_to_end(monkeypatch, tmp_path):
     assert out["summary"]["n"] == 1
     assert set(out["summary"]["windows"]) == {"30d", "60d", "90d"}
     jl = Path(out["jsonl"])
+    assert jl == tmp_path / ".dreams" / "path_review_live.jsonl"
     assert jl.exists() and jl.read_text().strip() != ""
     md = Path(out["report"])
+    assert md.name == "path_calibration_live.md"
     assert md.exists() and "路径预测校准报告" in md.read_text()
+
+
+def test_live_run_never_writes_recompute_baseline(monkeypatch, tmp_path):
+    """cron 跑的 run()（无 recompute）绝不能覆盖 .dreams/path_review.jsonl
+    —— 那是 fit_path_calibration.py 依赖的 walk-forward 校准基线（旧版 write_outputs
+    整份 "w" 覆盖，开 cron 第一次就把基线换成几条 live）。docs/path_calibration.md
+    同理。空 live（零快照）也算：旧代码同样会写出空基线。"""
+    import openinvest.core.memory_store as ms
+    monkeypatch.setattr(ms, "MEMORY_ROOT", tmp_path)
+    monkeypatch.setattr(pr, "ROOT", tmp_path)
+    (tmp_path / "docs").mkdir()
+    (tmp_path / ".dreams").mkdir()
+    baseline = tmp_path / ".dreams" / "path_review.jsonl"
+    report = tmp_path / "docs" / "path_calibration.md"
+    baseline.write_bytes(b'{"source": "recompute", "sentinel": 1}\n')
+    report.write_bytes(b"baseline report\n")
+    before = (baseline.read_bytes(), report.read_bytes())
+
+    out = pr.run()
+
+    assert (baseline.read_bytes(), report.read_bytes()) == before
+    assert Path(out["jsonl"]).name == "path_review_live.jsonl"
+
+
+def test_run_rereads_closes_each_call(monkeypatch, tmp_path):
+    """scheduler 是常驻进程、模块只 import 一次：第二次 run() 必须看到新落库的收盘价。
+    旧代码的 _HIST 永不清 → 第一周之后新成熟的快照永远评不到，job 仍报 success。
+    两次 run() 之间故意不清 _HIST（autouse fixture 只在测试前后清）。"""
+    import openinvest.core.memory_store as ms
+    import openinvest.db.market_store as mstore
+    monkeypatch.setattr(ms, "MEMORY_ROOT", tmp_path)
+    monkeypatch.setattr(pr, "ROOT", tmp_path)
+    (tmp_path / "docs").mkdir()
+
+    idx = pd.date_range("2024-01-01", periods=400, freq="D")
+    closes = pd.Series([100.0 + i for i in range(400)], index=idx)
+    db = {"n": 200}   # “库里”目前只有前 200 天
+
+    class _FakeStore:
+        def get_history_df(self, symbol, days):
+            return pd.DataFrame({"Close": closes.iloc[:db["n"]]})
+
+    monkeypatch.setattr(mstore, "MarketStore", _FakeStore)
+
+    prof = {"windows": {w: {"median_pct": 1.0, "p_below": 0.3,
+                            "p10_pct": -50.0, "p90_pct": 90.0}
+                        for w in ("30d", "60d", "90d")}}
+    for dd in ("2024-02-01", "2024-07-05"):   # 第二条要等 200 天之后的价格才成熟
+        d = tmp_path / ".committee" / dd
+        d.mkdir(parents=True)
+        (d / "X_path.json").write_text(json.dumps(
+            {"date": dd, "symbol": "X", "regime": "uptrend",
+             "current_price": 1.0, "atr_pct": 1.0, "profile": prof}))
+
+    assert pr.run()["reviews"] == 1
+    db["n"] = 400     # 一周后：新价格落库
+    assert pr.run()["reviews"] == 2
