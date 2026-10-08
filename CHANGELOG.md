@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.36.0](https://github.com/longsizhuo/openInvest/compare/v0.35.0...v0.36.0) (2026-10-08)
+
+
+### Features
+
+* **event:** 事件召回支持 as-of-D 截断——回测零前视前置（[#196](https://github.com/longsizhuo/openInvest/issues/196)） ([#255](https://github.com/longsizhuo/openInvest/issues/255)) ([e83b0fb](https://github.com/longsizhuo/openInvest/commit/e83b0fb40c6f5b154f6149f2391397d74f158227))
+* **scheduler:** job_watchdog 巡检停摆/卡死/零抓取 + pnl-data 推送失败如实上报（[#232](https://github.com/longsizhuo/openInvest/issues/232)-5） ([#259](https://github.com/longsizhuo/openInvest/issues/259)) ([c73a6c2](https://github.com/longsizhuo/openInvest/commit/c73a6c21c5a6a3149398c18cf022eebc69d1c9cb))
+
+
+### Bug Fixes
+
+* **data:** get_history_data 按 period 真截断——宏观 MoM 与 Macro 工具 3mo/6mo 实为 ~3 年涨跌 ([#256](https://github.com/longsizhuo/openInvest/issues/256)) ([8e130bc](https://github.com/longsizhuo/openInvest/commit/8e130bca36141d67c5e60810e58fa29be2b4d43c))
+* **events:** 触发闸提成共享 service——Hermes 投喂的事件接上委员会触发，两门共享冷却/日上限 ([#261](https://github.com/longsizhuo/openInvest/issues/261)) ([b633cf2](https://github.com/longsizhuo/openInvest/commit/b633cf20f88e3969117013719586fdd6bd5b0eb5))
+* **news:** RSS 抓取加整次总时限与地址校验，add_news_source 只收公网源且不阻塞 MCP ([#262](https://github.com/longsizhuo/openInvest/issues/262)) ([566538f](https://github.com/longsizhuo/openInvest/commit/566538fd1973ab3f19e032ff55452f2fa676f7e2))
+* **web:** 阻塞 IO 端点改走线程池，补齐去掉隐式串行后暴露的并发写（[#233](https://github.com/longsizhuo/openInvest/issues/233)-3） ([#258](https://github.com/longsizhuo/openInvest/issues/258)) ([069c0d3](https://github.com/longsizhuo/openInvest/commit/069c0d3024e10b21b2c95daefc99640d19aa0612))
+* 定时任务星期错位（1-5 实跑周二到周六）+ 定投休市日不记账 + 存量对账脚本 ([#260](https://github.com/longsizhuo/openInvest/issues/260)) ([83b722d](https://github.com/longsizhuo/openInvest/commit/83b722de5967c6dde7bf070d83a2690caad0cc92))
+* 账本/持久化残留窗口三处（[#231](https://github.com/longsizhuo/openInvest/issues/231)）——CommSec 去重键、PATCH executed 崩溃窗、OHLCV 被冲 ([#257](https://github.com/longsizhuo/openInvest/issues/257)) ([8312d66](https://github.com/longsizhuo/openInvest/commit/8312d66c39bf35ded2f6d55453829bfba6ea898a))
+
 ## [0.35.0](https://github.com/longsizhuo/openInvest/compare/v0.34.1...v0.35.0) (2026-10-07)
 
 
