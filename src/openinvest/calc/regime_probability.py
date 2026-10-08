@@ -259,13 +259,18 @@ def forward_return(
         return None
     idx = closes.index
     ts = pd.Timestamp(asof)
+    if getattr(idx, "tz", None) is not None and ts.tzinfo is None:  # tz-aware index 也能比
+        ts = ts.tz_localize(idx.tz)
     i = idx.searchsorted(ts, side="right") - 1
     if i < 0:
         return None
     j = idx.searchsorted(ts + pd.Timedelta(days=calendar_days), side="left")
     if j >= len(idx):
         return None
-    return float(closes.iloc[j]) / float(closes.iloc[i]) - 1.0
+    base = float(closes.iloc[i])
+    if base <= 0:   # 非正价（如 2020-04 原油期货负价）收益无意义 → None；verdict_review 迁入前的旧护栏
+        return None
+    return float(closes.iloc[j]) / base - 1.0
 
 
 def _percentile_rank(window):  # window: np.ndarray
