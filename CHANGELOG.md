@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.3](https://github.com/longsizhuo/openInvest/compare/v0.36.2...v0.36.3) (2026-10-08)
+
+
+### Bug Fixes
+
+* **committee:** stop forcing HOLD when CIO merely mentions [WORKER_UNAVAILABLE] ([#275](https://github.com/longsizhuo/openInvest/issues/275)) ([33db1d4](https://github.com/longsizhuo/openInvest/commit/33db1d4fdf3107e43512a7e9d83c0c9cdd74a8e3))
+* **watchdog:** move SCHEDULED_SINCE to scheduler.cron so the watchdog sees the __main__ runner's registrations ([#274](https://github.com/longsizhuo/openInvest/issues/274)) ([5c8ef9c](https://github.com/longsizhuo/openInvest/commit/5c8ef9c03d112253683b9d3591af0f8d5559ad63))
+
 ## [0.36.2](https://github.com/longsizhuo/openInvest/compare/v0.36.1...v0.36.2) (2026-10-08)
 
 
