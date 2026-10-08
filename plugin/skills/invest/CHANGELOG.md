@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/longsizhuo/openInvest/compare/invest-skill-v0.20.2...invest-skill-v0.21.0) (2026-10-08)
+
+
+### Features
+
+* **verdict-review:** live-only daily review, DB-only prices, summary split by source ([#279](https://github.com/longsizhuo/openInvest/issues/279)) ([4382f7e](https://github.com/longsizhuo/openInvest/commit/4382f7e0b1045e2fea2285d84c4c7982879685e8))
+
 ## [0.20.2](https://github.com/longsizhuo/openInvest/compare/invest-skill-v0.20.1...invest-skill-v0.20.2) (2026-10-08)
 
 
