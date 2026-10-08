@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.2](https://github.com/longsizhuo/openInvest/compare/invest-skill-v0.21.1...invest-skill-v0.21.2) (2026-10-08)
+
+
+### Docs
+
+* **skill:** quote confidence_lookup next to verdicts, keep self-reported confidence as raw ([#295](https://github.com/longsizhuo/openInvest/issues/295)) ([5864ac3](https://github.com/longsizhuo/openInvest/commit/5864ac3a4403137fcc5e4b3c99f160e5d0219c72))
+
 ## [0.21.1](https://github.com/longsizhuo/openInvest/compare/invest-skill-v0.21.0...invest-skill-v0.21.1) (2026-10-08)
 
 
