@@ -103,6 +103,31 @@ def test_resolve_calls_recall_with_env_params(monkeypatch):
     assert captured["top_k"] == 3
 
 
+def test_resolve_multi_threads_as_of_to_recall(monkeypatch):
+    """issue #196：resolve_event_brief_multi(as_of=D) → _resolve_event_brief →
+    store.recall(as_of=D) 逐 symbol 透传；不传 → as_of=None（生产现行为）。
+    0/1：任一层漏转发 → seen 里出现 None / MISSING 即红。"""
+    from datetime import datetime, timezone
+    from openinvest.core.runner.event_brief import resolve_event_brief_multi
+
+    monkeypatch.setenv("INVEST_EVENT_RAG_ENABLED", "true")
+    seen = []
+
+    class FakeStore:
+        vec_loaded = False
+
+        def recall(self, symbol, **kwargs):
+            seen.append(kwargs.get("as_of", "MISSING"))
+            return []
+
+    D = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    with patch("openinvest.core.runner.event_brief._get_event_store", return_value=FakeStore()):
+        resolve_event_brief_multi(["NVDA", "GC=F"], as_of=D)
+        resolve_event_brief_multi(["NVDA"])
+
+    assert seen == [D, D, None]
+
+
 # ============================================================================
 # format_event_brief
 # ============================================================================
@@ -226,3 +251,21 @@ def test_format_output_parseable_by_sentiment_parser():
     assert entries[1]["syms"] == {"OTHER=F"}
     assert entries[1]["ts"] is not None  # Z 后缀可解析
     assert entries[2]["ts"] is None and entries[2]["syms"] == set()
+
+
+def test_as_of_misuse_fails_loudly_not_silently_empty():
+    """naive / str 的 as_of 是调用方用法错误，必须抛出，不能被 graceful except 吞成空 brief
+    （否则回测会静默跑成"无事件层"——2026-10-07 review）。"""
+    from datetime import datetime, timezone
+
+    import pytest
+
+    from openinvest.core.runner import event_brief as eb
+
+    for bad in (datetime(2026, 9, 1), "2026-09-01T00:00:00+00:00"):
+        with pytest.raises(ValueError):
+            eb.resolve_event_brief_multi(["GC=F"], as_of=bad)
+        with pytest.raises(ValueError):
+            eb._resolve_event_brief("GC=F", override=None, as_of=bad)
+    # 合法 tz-aware 值不受影响（override 路径直接返回）
+    assert eb._resolve_event_brief("GC=F", override="x", as_of=datetime(2026, 9, 1, tzinfo=timezone.utc)) == "x"
