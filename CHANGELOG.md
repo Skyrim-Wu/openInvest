@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.39.0](https://github.com/longsizhuo/openInvest/compare/v0.38.1...v0.39.0) (2026-10-08)
+
+
+### Features
+
+* **mcp:** run_committee 上报辩论进度、decisions 支持过滤与截断（[#133](https://github.com/longsizhuo/openInvest/issues/133)） ([#309](https://github.com/longsizhuo/openInvest/issues/309)) ([447ab58](https://github.com/longsizhuo/openInvest/commit/447ab58a7d5875346f4bc92d45fde4640c630d92))
+
+
+### Bug Fixes
+
+* **pnl:** outperform 事件 label 只写方向，不量化不可比差值（[#234](https://github.com/longsizhuo/openInvest/issues/234)-3） ([#308](https://github.com/longsizhuo/openInvest/issues/308)) ([a3476ff](https://github.com/longsizhuo/openInvest/commit/a3476ffc0e1a4eeef7ff961e4b882058ff295714))
+
 ## [0.38.1](https://github.com/longsizhuo/openInvest/compare/v0.38.0...v0.38.1) (2026-10-08)
 
 
