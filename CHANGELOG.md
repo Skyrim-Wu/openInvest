@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.1](https://github.com/longsizhuo/openInvest/compare/v0.38.0...v0.38.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **events:** only target_assets start event-triggered committees; holdings-only symbols alert only ([#306](https://github.com/longsizhuo/openInvest/issues/306)) ([d189552](https://github.com/longsizhuo/openInvest/commit/d189552a3b569ef5b124e07d8ba887c5b7e2a510))
+
 ## [0.38.0](https://github.com/longsizhuo/openInvest/compare/v0.37.2...v0.38.0) (2026-10-08)
 
 
