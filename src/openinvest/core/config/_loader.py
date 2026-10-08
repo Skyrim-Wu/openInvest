@@ -365,7 +365,7 @@ API_SETTABLE: Dict[str, Dict[str, Any]] = {
     "dca.auto_dca_enabled": {
         "type": "bool",
         "label": "自动定投",
-        "help": "开启=jobs/dca_daily 每日给配置的 symbols 记一笔 external_funding 买入（不扣子弹池现金）；默认关",
+        "help": "开启=jobs/dca_daily 每个交易日给配置的 symbols 记一笔 external_funding 买入（不扣子弹池现金）；仅适用北京 15:30 前收盘的市场（A 股/亚太），休市日不记；默认关",
     },
     "dca.auto_dca_amount_cny": {
         "type": "float",
@@ -495,15 +495,16 @@ def _coerce_and_validate(key: str, value: Any) -> Any:
             raise ValueError(f"{key} 不能为负，得到 {val_int}")
         return val_int
     if t == "cron":
-        # crontab 字符串（如 event.watch_schedule）。用 APScheduler 自己的解析器校验，
-        # 保证"能写进 config 的一定能被 scheduler 注册"，不自造二套 cron 语法。
+        # crontab 字符串（如 event.watch_schedule）。用 scheduler 注册时同一个解析入口
+        # （scheduler/cron.py，标准 crontab 星期编号）校验，保证"能写进 config 的一定能被
+        # scheduler 注册"，不自造二套 cron 语法。
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{key} 需非空 crontab 字符串，得到 {value!r}")
         v = value.strip()
         try:
             # 惰性 import：apscheduler 是本仓依赖（scheduler 用），但 core.config 不常驻加载它
-            from apscheduler.triggers.cron import CronTrigger
-            CronTrigger.from_crontab(v)
+            from openinvest.scheduler.cron import crontab_trigger
+            crontab_trigger(v)
         except ImportError:  # pragma: no cover - 生产 venv 必有 apscheduler
             if len(v.split()) != 5:
                 raise ValueError(f"{key} 需 5 字段 crontab，得到 {value!r}")
