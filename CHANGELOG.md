@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.36.2](https://github.com/longsizhuo/openInvest/compare/v0.36.1...v0.36.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **events:** 事件召回先按标的过滤再截断，按真实时刻取最新——低频持仓不再被挤成 0 条 ([#271](https://github.com/longsizhuo/openInvest/issues/271)) ([3842221](https://github.com/longsizhuo/openInvest/commit/3842221663fb190649a8034c49084415d68c477e))
+* **market-data:** 今天的 close-only 行缺 H/L 时仍补刷一次 OHLCV ([#270](https://github.com/longsizhuo/openInvest/issues/270)) ([9eb3f72](https://github.com/longsizhuo/openInvest/commit/9eb3f72a5d2a02a9d707d99deba61c88875bd426))
+* **watchdog:** 改排程后不再拿新 cron 套旧运行误报停摆 ([#272](https://github.com/longsizhuo/openInvest/issues/272)) ([5153b7c](https://github.com/longsizhuo/openInvest/commit/5153b7c4b3e661ec05b5f2d56bc50ef2f60ec2f2))
+
 ## [0.36.1](https://github.com/longsizhuo/openInvest/compare/v0.36.0...v0.36.1) (2026-10-08)
 
 
