@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.1](https://github.com/longsizhuo/openInvest/compare/v0.36.0...v0.36.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* 计算口径一致性（[#234](https://github.com/longsizhuo/openInvest/issues/234)-2/5/6）——hit-rate 基准价统一、Quant 提示与 CIO 同一校准、Coordinator 补齐后处理 ([#263](https://github.com/longsizhuo/openInvest/issues/263)) ([9d75684](https://github.com/longsizhuo/openInvest/commit/9d75684fbaf96687f5be302de305e06ab00b4e1e))
+
 ## [0.36.0](https://github.com/longsizhuo/openInvest/compare/v0.35.0...v0.36.0) (2026-10-08)
 
 
