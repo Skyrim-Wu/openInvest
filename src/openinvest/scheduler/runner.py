@@ -7,6 +7,9 @@
 - 支持 --once <job_name> 单次执行模式（cli 触发）
 - 支持 --list 列出所有任务
 
+daemon 以 `python -m` 启动，本模块在进程里叫 __main__：job 里 `import runner` 拿到的是
+另一份空副本。跨 job 共享的进程级状态别放这里，放 scheduler/cron.py 这类按名导入的模块。
+
 使用：
     python -m openinvest.scheduler.runner               # 后台跑所有 enabled job
     python -m openinvest.scheduler.runner --once daily_report
@@ -31,7 +34,7 @@ from typing import Any, Callable, Dict, List, Optional
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from openinvest.paths import INVEST_ROOT
-from openinvest.scheduler.cron import crontab_trigger  # 标准 crontab 星期编号（0/7=周日）
+from openinvest.scheduler.cron import SCHEDULED_SINCE, crontab_trigger  # 标准 crontab 星期编号（0/7=周日）
 
 ROOT = INVEST_ROOT
 import openinvest.jobs as _jobs_pkg
@@ -255,7 +258,7 @@ def register_jobs(sched: BackgroundScheduler, quiet: bool = False) -> List[Dict[
             misfire_grace_time=600,  # 重启后 10 分钟内的 misfire 也补跑
         )
         _LAST_SCHEDULES[cfg["name"]] = schedule
-        _SCHEDULED_SINCE[cfg["name"]] = datetime.now(timezone.utc)
+        SCHEDULED_SINCE[cfg["name"]] = datetime.now(timezone.utc)
         registered.append(cfg)
         if prev is not None and prev != schedule:
             log.info(f"[{cfg['name']}] schedule 变更: {prev} → {schedule}")
@@ -266,10 +269,6 @@ def register_jobs(sched: BackgroundScheduler, quiet: bool = False) -> List[Dict[
 
 # 上次注册的 schedule 快照（变更检测用；仅 daemon 进程内有效）
 _LAST_SCHEDULES: Dict[str, str] = {}
-# 每个 job 按当前 schedule 生效的起点（启动注册 / schedule 变更时刷新；仅 daemon 进程内有效）。
-# job_watchdog 只把这之后的应触发时刻算作"该跑没跑"——否则改 schedule 后会拿新 cron 去套
-# 旧 cron 下的最后一次运行，误报停摆（2026-10-08 dca_daily 改排程后实际误报过一次）。
-_SCHEDULED_SINCE: Dict[str, datetime] = {}
 
 
 # ---------- CLI ----------
