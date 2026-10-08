@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.4](https://github.com/longsizhuo/openInvest/compare/v0.36.3...v0.36.4) (2026-10-08)
+
+
+### Bug Fixes
+
+* **metrics:** ATR skips close-only rows instead of degrading the whole series to |ΔClose| ([#281](https://github.com/longsizhuo/openInvest/issues/281)) ([126305f](https://github.com/longsizhuo/openInvest/commit/126305f91621b7684cc495e7231069d559fe0dd5))
+
 ## [0.36.3](https://github.com/longsizhuo/openInvest/compare/v0.36.2...v0.36.3) (2026-10-08)
 
 
