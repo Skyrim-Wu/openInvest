@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import logging
 from typing import Any, Dict, Optional, Tuple
 
@@ -29,18 +30,24 @@ from openinvest.db.trades_db import TradesDB as _TradesDB
 # 模块级单例 — 延迟初始化，避免 DB 文件损坏时 import 崩溃导致 crash-loop
 # （模块级 _TradesDB() 在 import 时执行，DB 损坏 → import 失败 → 服务器无法启动 → 重启死循环）
 _trades_db: Optional[_TradesDB] = None
+_trades_db_lock = threading.Lock()
 
 
 def _get_trades_db() -> _TradesDB:
-    """延迟初始化 TradesDB 单例，首次调用时创建连接。"""
+    """延迟初始化 TradesDB 单例，首次调用时创建连接。
+
+    端点进线程池后两个首请求可能同时看到 None——双检锁防重复建连接（泄漏一条永不关闭的
+    sqlite 连接 + 重复跑 wal_checkpoint）。"""
     global _trades_db
     if _trades_db is None:
-        _trades_db = _TradesDB()
+        with _trades_db_lock:
+            if _trades_db is None:
+                _trades_db = _TradesDB()
     return _trades_db
 
 
 @router.post("/api/trades/record", tags=["trades"])
-async def record_trade(body: RecordTradeRequest = Body(...)) -> Dict[str, Any]:
+def record_trade(body: RecordTradeRequest = Body(...)) -> Dict[str, Any]:
     """记录一笔计划交易到本地账本（不连真实支付渠道）
 
     写入 db/trades.db，返回 {id, ok: true}。
@@ -63,7 +70,7 @@ async def record_trade(body: RecordTradeRequest = Body(...)) -> Dict[str, Any]:
 
 
 @router.get("/api/trades", response_model=TradesListResponse, tags=["trades"])
-async def list_trades(limit: int = Query(20, ge=1, le=500,
+def list_trades(limit: int = Query(20, ge=1, le=500,
                                          description="最近 N 笔，最多 500")) -> TradesListResponse:
     """按时间倒序返回最近 N 笔账本记录"""
     rows = _get_trades_db().list_trades(limit=limit)
@@ -281,14 +288,17 @@ async def patch_trade_status(
     重试 PATCH executed 识别到标记 → 接手补同步（已落盘则去重 no-op），不再永久欠账。
     """
     # 先取 trade 原始数据（patch 前），供后面同步用
-    trade_before = _get_trades_db().get_trade(trade_id)
+    # 单例首次构造（connect + wal_checkpoint，busy_timeout 5s）也丢线程池；之后
+    # _get_trades_db() 只是取已建好的单例
+    db = await asyncio.to_thread(_get_trades_db)
+    trade_before = await asyncio.to_thread(db.get_trade, trade_id)
     if trade_before is None:
         raise HTTPException(status_code=404, detail=f"trade id={trade_id} 不存在")
 
     # ---- 非 executed（planned / cancelled）：无 portfolio 副作用，直接改状态 ----
     if status != "executed":
         try:
-            patched = _get_trades_db().patch_status(trade_id, status)
+            patched = await asyncio.to_thread(db.patch_status, trade_id, status)
             if not patched:
                 raise HTTPException(status_code=404, detail=f"trade_id={trade_id} 不存在")
         except ValueError as e:
@@ -307,14 +317,14 @@ async def patch_trade_status(
     # CAS：仅 rowcount==1 的请求赢得 planned→executed 跃迁并独占同步；其余幂等返回。
     # 同样覆盖顺序重放（双击 / 客户端超时重试 / agent 重发）。
     won = await asyncio.to_thread(
-        _get_trades_db().claim_status_transition, trade_id, "executed",
+        db.claim_status_transition, trade_id, "executed",
         from_status="planned", mark_sync_pending=True,
     )
     if not won:
         # #231：claim 已落盘但同步没确认完成（崩在两步之间 / 并发赢家仍在同步）的行
         # 带 sync_pending=1 → 接手同步（_sync 按 trade 去重，已入账则 no-op，不会双记）。
         # 旧逻辑这里一律早退 → claim 后崩溃的单子永久欠账。
-        cur = _get_trades_db().get_trade(trade_id) or {}
+        cur = await asyncio.to_thread(db.get_trade, trade_id) or {}
         if not (cur.get("status") == "executed" and cur.get("sync_pending")):
             # 已 executed 且同步完（或 #231 前的老行）→ 首次已同步，本次幂等跳过
             return {
@@ -339,7 +349,7 @@ async def patch_trade_status(
         # 行已不是本请求刚 claim 到的 "executed" 就不写，避免无条件 UPDATE 把
         # 别人的合法状态改动静默覆盖回去。
         released = await asyncio.to_thread(
-            _get_trades_db().release_claim, trade_id, "executed", "planned",
+            db.release_claim, trade_id, "executed", "planned",
         )
         if not released:
             log.error(
@@ -357,7 +367,7 @@ async def patch_trade_status(
         f"{trade_before.get('symbol')}"
     )
     try:
-        await asyncio.to_thread(_get_trades_db().clear_sync_pending, trade_id)
+        await asyncio.to_thread(db.clear_sync_pending, trade_id)
     except Exception as e:  # noqa: BLE001
         # 已入账；标记残留只会让下次重试走一遍去重 no-op 再清，不影响账本
         log.warning(f"trade_id={trade_id} 已同步但清 sync_pending 失败（下次重试自愈）: {e}")
