@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/longsizhuo/openInvest/compare/invest-skill-v0.21.0...invest-skill-v0.21.1) (2026-10-08)
+
+
+### Docs
+
+* **skill:** explain weekend_dup_excluded in the verdict_review summary ([#292](https://github.com/longsizhuo/openInvest/issues/292)) ([368aa91](https://github.com/longsizhuo/openInvest/commit/368aa916d510601d5a480935c4aa6305b4752328))
+
 ## [0.21.0](https://github.com/longsizhuo/openInvest/compare/invest-skill-v0.20.2...invest-skill-v0.21.0) (2026-10-08)
 
 
