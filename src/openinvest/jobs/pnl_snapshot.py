@@ -321,8 +321,18 @@ def _auto_push_svg() -> Dict[str, Any]:
                 ls = _git(["ls-remote", "--heads", authed_remote, branch], check=False)
                 exists_remote = bool(ls.stdout.strip())
                 if exists_remote:
+                    # 2026-10-07（#232-5）：ls-remote 只"看"远端，不建 remote-tracking ref。
+                    # 单分支 clone / CI / 自建分支的机器上 refs/remotes/origin/<branch> 不存在，
+                    # 旧代码 worktree add check=False 静默失败，后续 git 在裸 temp dir 里跑，
+                    # pushed 永远 False 而 job 报 ok。先显式 fetch 建 ref，两步都 check（失败走
+                    # 下方 CalledProcessError 分支、stderr 脱敏）。"+" 强更：分支是 force push 的。
+                    # 被杀/异常留下的 worktree 登记（temp dir 已删）会让 add -B 永远报
+                    # "already used by worktree"——先 prune 自愈
+                    _git(["worktree", "prune"], check=False)
+                    _git(["fetch", authed_remote,
+                          f"+refs/heads/{branch}:refs/remotes/origin/{branch}"])
                     _git(["worktree", "add", wt_dir, "-B", branch,
-                          f"refs/remotes/origin/{branch}"], check=False)
+                          f"refs/remotes/origin/{branch}"])
                 else:
                     # 全新 orphan：先 worktree add 主分支占位，然后切到 orphan
                     _git(["worktree", "add", "--detach", wt_dir, "HEAD"])
@@ -369,9 +379,16 @@ def _auto_push_svg() -> Dict[str, Any]:
                     "commit", "-m", "chore(pnl): hourly snapshot [skip ci]",
                 ], cwd=str(wt), check=True, capture_output=True)
 
-                # Orphan 分支总是 force push（每次 reset 到最新）
+                # Orphan 分支总是 force push 一个**无父** commit（每次 reset 到只含最新 SVG）。
+                # 2026-10-07：worktree 现在基于刚 fetch 的远端 tip，直接推 HEAD 会每次续一个
+                # commit（公开仓库一年 ~1.5k 个 SVG commit）——用同一棵 tree 另起无父 commit 推
+                orphan = subprocess.run(
+                    ["git", "-c", "user.name=pnl-bot", "-c", "user.email=pnl-bot@invest.local",
+                     "commit-tree", "HEAD^{tree}", "-m", "chore(pnl): hourly snapshot [skip ci]"],
+                    cwd=str(wt), check=True, capture_output=True, text=True,
+                ).stdout.strip()
                 push = subprocess.run(
-                    ["git", "push", "--force", authed_remote, f"HEAD:{branch}"],
+                    ["git", "push", "--force", authed_remote, f"{orphan}:refs/heads/{branch}"],
                     cwd=str(wt), capture_output=True, text=True,
                 )
                 _git(["worktree", "remove", "--force", wt_dir], check=False)
@@ -403,12 +420,29 @@ def _auto_push_svg() -> Dict[str, Any]:
     except subprocess.CalledProcessError as e:
         # e.stderr 同样可能带 authed_remote（token），统一脱敏
         raw = e.stderr[:200] if e.stderr else str(e)
+        # orphan 分支里的裸 subprocess.run 没开 text=True，stderr 是 bytes——直接喂
+        # _redact_token_in 会抛 TypeError，把真正的 git 错误吞成 job failed
+        # （生产 2026-08-12 17:00 job_runs 实证）。
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="replace")
         return {"pushed": False, "reason": f"git failure: {_redact_token_in(raw)}"}
     except Exception as e:
         # 兜底分支同样可能带 authed_remote（token）—— 非 CalledProcessError 的
         # subprocess 异常（OSError/TimeoutExpired）或库异常的 message 里也会回显
         # 带 token 的 URL，统一脱敏。type 名不含 secret，保留不脱敏。
         return {"pushed": False, "reason": f"unexpected: {type(e).__name__}: {_redact_token_in(str(e))}"}
+
+
+# 不 push 的正常原因；其余 pushed=False 都是失败。#232-5：之前失败只埋在 push 子 dict 里，
+# job 顶层照报 ok，没人会去翻——顶层 status 必须反映出来。
+_PUSH_NOOP_REASONS = ("INVEST_PNL_AUTOPUSH != 1", "no svg change")
+
+
+def _push_status(push: Dict[str, Any]) -> str:
+    if push.get("pushed") or push.get("reason") in _PUSH_NOOP_REASONS:
+        return "ok"
+    log.warning(f"[pnl_snapshot] SVG push 失败: {push.get('reason')}")
+    return "push_failed"
 
 
 def _persist_outperform(events: List[Dict[str, Any]]) -> None:
@@ -580,7 +614,7 @@ def run() -> Dict[str, Any]:
     push_result = _auto_push_svg()
 
     return {
-        "status": "ok",
+        "status": _push_status(push_result),
         "ts": snap.ts,
         "history_points": len(history),
         "svg_path": str(SVG_PATH),
