@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.2](https://github.com/longsizhuo/openInvest/compare/v0.37.1...v0.37.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **email:** render-time HTML allowlist for emails and the committee view ([#299](https://github.com/longsizhuo/openInvest/issues/299)) ([f073676](https://github.com/longsizhuo/openInvest/commit/f0736765f043d88b7dc0d867819aa53ed9aec260))
+
 ## [0.37.1](https://github.com/longsizhuo/openInvest/compare/v0.37.0...v0.37.1) (2026-10-08)
 
 
