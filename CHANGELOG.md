@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.39.1](https://github.com/longsizhuo/openInvest/compare/v0.39.0...v0.39.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **benchmarks:** label Eastmoney fund NAV dates in China time via the shared fetcher ([2d5057c](https://github.com/longsizhuo/openInvest/commit/2d5057c43be4b72fe4db0036859372886b941198))
+* **committee:** value off-exchange fund holdings at Eastmoney NAV in committee and daily report ([524f6bc](https://github.com/longsizhuo/openInvest/commit/524f6bcbc61c50dac69eb35f0b4db03429747329))
+* **import:** derive fund cost basis from holding P&L, not cumulative return ([1c2c8e9](https://github.com/longsizhuo/openInvest/commit/1c2c8e971bfe53be3ad3a081589af46bb49c0131))
+* **quotes:** refetch fund NAV after failures and read it from Eastmoney's f10 NAV endpoint ([82dd609](https://github.com/longsizhuo/openInvest/commit/82dd609bc435d845ae554ef033f9f160aeab1679))
+
 ## [0.39.0](https://github.com/longsizhuo/openInvest/compare/v0.38.1...v0.39.0) (2026-10-08)
 
 
