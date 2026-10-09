@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.2](https://github.com/longsizhuo/openInvest/compare/v0.39.1...v0.39.2) (2026-10-09)
+
+
+### Docs
+
+* **mcp:** record cross-machine testing for issue [#191](https://github.com/longsizhuo/openInvest/issues/191) ([#313](https://github.com/longsizhuo/openInvest/issues/313)) ([a9d2902](https://github.com/longsizhuo/openInvest/commit/a9d2902e24eea0d295c7be9969712b5dd18da500))
+
 ## [0.39.1](https://github.com/longsizhuo/openInvest/compare/v0.39.0...v0.39.1) (2026-10-09)
 
 
