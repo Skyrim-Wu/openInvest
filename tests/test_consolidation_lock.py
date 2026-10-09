@@ -41,9 +41,11 @@ def test_zombie_dead_pid_reclaimed(tmp_path):
     lock = _lock_file(tmp_path)
     lock.parent.mkdir(parents=True, exist_ok=True)
     # 起一个立即退出的子进程拿它的已死 PID（比猜一个未用 PID 更可靠）
-    p = mp.Process(target=lambda: None)
+    # macOS defaults to spawn: the child target must be picklable (not a lambda).
+    p = mp.Process(target=os.getpid)
     p.start()
     p.join()
+    assert p.exitcode == 0
     lock.write_text(str(p.pid))
     assert try_acquire_consolidation_lock(tmp_path) is not None, "死 PID 应可重新认领"
     assert lock.read_text().strip() == str(os.getpid())
