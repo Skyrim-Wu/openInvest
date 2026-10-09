@@ -152,3 +152,15 @@ def test_fetch_fund_nav_history_failure(monkeypatch):
     assert emf.fetch_fund_nav_history("FUND:123456") is None
     assert emf.fetch_fund_nav_history("AAPL") is None
 
+
+def test_benchmark_fund_series_uses_shared_fetcher(monkeypatch):
+    from openinvest.core import benchmarks
+
+    monkeypatch.setattr(benchmarks, "fetch_fund_nav_history", lambda code: [
+        ("2026-01-02", 1.0), ("2026-01-05", 1.1), ("2026-01-06", 1.2), ("2026-01-07", 1.3),
+    ])
+    assert benchmarks._fetch_eastmoney_fund("123456", "2026-01-05", "2026-01-06") == {
+        "2026-01-05": 1.1, "2026-01-06": 1.2,
+    }
+    monkeypatch.setattr(benchmarks, "fetch_fund_nav_history", lambda code: None)
+    assert benchmarks._fetch_eastmoney_fund("123456", "2026-01-01", "2026-12-31") == {}
