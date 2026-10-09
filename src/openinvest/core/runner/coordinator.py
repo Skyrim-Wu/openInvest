@@ -113,6 +113,7 @@ def prepare_committee_brief(symbol: str) -> Dict[str, Any]:
     # import 路径保持 jobs.daily_report_builder（re-export）——契约测试 patch 的是它
     from openinvest.jobs.daily_report_builder import portfolio_summary_text
     from openinvest.utils.fx import total_portfolio_value_cny
+    from openinvest.utils.quotes import get_quote, is_eastmoney_fund
 
     gold_now = snap.spot_cny_per_gram if snap else 0.0
     # 通用化 current_prices：所有 holdings 拉实时价，黄金特殊处理用 spot_cny_per_gram
@@ -123,6 +124,11 @@ def prepare_committee_brief(symbol: str) -> Dict[str, Any]:
             continue
         if sym == "GC=F":
             current_prices[sym] = gold_now
+        elif is_eastmoney_fund(h):
+            # 场外基金 yfinance 没有：走 quote 层的东方财富净值，与 status 同口径
+            quote = get_quote(h)
+            if quote is not None:
+                current_prices[sym] = quote.price
         else:
             current_prices[sym] = _safe_close_latest(sym)
 

@@ -4,7 +4,13 @@ from contextlib import contextmanager
 
 import pytest
 
-from openinvest.services.holdings_import import _normalize_holding, commit_parsed, parse_holdings
+from openinvest.services.holdings_import import (
+    _normalize_holding,
+    commit_parsed,
+    enrich_fund_holdings,
+    parse_holdings,
+)
+from openinvest.utils.eastmoney_fund import FundNavSnapshot
 
 
 class FakePM:
@@ -33,6 +39,61 @@ def test_normalize_kind_and_defaults():
     assert h["unit_label"] == "股" and h["cost_currency"] == "CNY" and h["channel"] == "未指定"
     assert h["display_name"] == "AAPL"
     assert _normalize_holding({"symbol": "X", "kind": "weird"})["kind"] == "other"
+
+
+def test_portfolio_schema_migrates_legacy_stock_kind():
+    from openinvest.core.schemas import validate_portfolio
+
+    out = validate_portfolio({
+        "schema_version": 2,
+        "cash": {},
+        "holdings": [{
+            "symbol": "TEST.SS",
+            "kind": "stock",
+            "units": 100,
+            "avg_cost": 10.0,
+            "cost_currency": "CNY",
+        }],
+    })
+
+    assert out["holdings"][0]["kind"] == "equity"
+
+
+def test_fund_enrichment_derives_units_and_avg_cost(monkeypatch):
+    monkeypatch.setattr(
+        "openinvest.utils.eastmoney_fund.fetch_fund_nav",
+        lambda symbol: FundNavSnapshot(
+            code="123456", nav=2.0, nav_date="2026-01-05", is_stale=False,
+        ),
+    )
+    parsed = enrich_fund_holdings({
+        "cash": {},
+        "holdings": [{
+            "symbol": "123456.SZ", "kind": "fund", "units": 0, "avg_cost": 0,
+            "market_value": 10000.0, "pnl": -1000.0,
+            "display_name": "Demo Fund",
+        }],
+    })
+    h = parsed["holdings"][0]
+    assert h["symbol"] == "FUND:123456"
+    assert h["proxy_kind"] == "eastmoney_fund"
+    assert h["units"] == pytest.approx(5000.0)
+    assert h["avg_cost"] == pytest.approx(2.2)      # (10000 + 1000) / 5000
+    assert h["nav_date_at_import"] == "2026-01-05"
+
+    normalized = _normalize_holding(h)
+    assert normalized["symbol"] == "FUND:123456"
+    assert normalized["proxy_kind"] == "eastmoney_fund"
+    assert normalized["kind"] == "fund"
+
+
+def test_fund_enrichment_keeps_zero_units_when_nav_unavailable(monkeypatch):
+    monkeypatch.setattr("openinvest.utils.eastmoney_fund.fetch_fund_nav", lambda symbol: None)
+    parsed = enrich_fund_holdings({"cash": {}, "holdings": [{
+        "symbol": "FUND:123456", "kind": "fund", "units": 0, "avg_cost": 0,
+        "market_value": 10000.0, "pnl": -1000.0,
+    }]})
+    assert parsed["holdings"][0]["units"] == 0
 
 
 def test_commit_non_destructive():

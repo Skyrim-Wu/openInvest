@@ -9,6 +9,7 @@
 - `direct`     — 直接拉 holding.symbol（yfinance 兼容的所有 symbol）
 - `gold_cny_per_gram` — GC=F + USDCNY=X 反推 CNY/克（浙商积存金这类）
 - `fx_pair`    — 货币对（USDCNY=X / EURUSD=X 等）
+- `eastmoney_fund` — 中国场外公募基金最新已确认单位净值
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from openinvest.utils.exchange_fee import get_history_data
+from openinvest.utils.eastmoney_fund import extract_fund_code, fetch_fund_nav
 from openinvest.utils.gold_price import get_gold_snapshot
 
 log = logging.getLogger(__name__)
@@ -48,7 +50,7 @@ def get_quote(holding: Dict[str, Any]) -> Optional[QuoteSnapshot]:
     - symbol: str
     - cost_currency: str
     - unit_label: str
-    - proxy_kind: 'direct' | 'gold_cny_per_gram' | 'fx_pair'
+    - proxy_kind: 'direct' | 'gold_cny_per_gram' | 'fx_pair' | 'eastmoney_fund'
     - yfinance_proxy: Optional[str]（不填则用 symbol）
     - price_offset_pct: Optional[float]（gold proxy 用）
     """
@@ -60,8 +62,47 @@ def get_quote(holding: Dict[str, Any]) -> Optional[QuoteSnapshot]:
         return _quote_gold(symbol, holding)
     if proxy_kind == "fx_pair":
         return _quote_fx(symbol, proxy_symbol, holding)
+    if is_eastmoney_fund(holding):
+        return _quote_eastmoney_fund(symbol, holding)
     # 默认 direct
     return _quote_direct(symbol, proxy_symbol, holding)
+
+
+def is_eastmoney_fund(holding: Dict[str, Any]) -> bool:
+    """场外公募基金持仓（走东方财富净值，不走 yfinance）。
+
+    显式 proxy_kind=eastmoney_fund，或 kind=fund 且 symbol 能解析出六位基金代码。
+    status / committee / daily_report 各自的取价循环都用这个判断，保证同一持仓同口径估值。
+    """
+    if str(holding.get("proxy_kind") or "") == "eastmoney_fund":
+        return True
+    return (
+        str(holding.get("kind") or "").lower() == "fund"
+        and extract_fund_code(str(holding.get("symbol") or "")) is not None
+    )
+
+
+def _quote_eastmoney_fund(
+    symbol: str,
+    holding: Dict[str, Any],
+) -> Optional[QuoteSnapshot]:
+    """中国场外公募基金：返回最新已确认单位净值（CNY/份）。"""
+    snap = fetch_fund_nav(symbol)
+    if snap is None:
+        return None
+    return QuoteSnapshot(
+        symbol=symbol,
+        price=snap.nav,
+        currency="CNY",
+        unit=str(holding.get("unit_label") or "份"),
+        last_updated=snap.nav_date or None,
+        is_stale=snap.is_stale,
+        extra={
+            "source": "eastmoney",
+            "fund_code": snap.code,
+            "nav_type": "confirmed_unit_nav",
+        },
+    )
 
 
 def _quote_gold(symbol: str, holding: Dict[str, Any]) -> Optional[QuoteSnapshot]:

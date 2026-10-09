@@ -22,9 +22,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import requests
 import yfinance as yf
 from openinvest.paths import INVEST_ROOT
+from openinvest.utils.eastmoney_fund import fetch_fund_nav_history
 # 纯计算核已迁 calc 层（ADR-026）——从 calc 导回供本模块 IO 函数使用，并保持历史导出面
 from openinvest.calc.series import BenchmarkSeries, _generate_constant_apr, to_pct_series  # noqa: F401
 
@@ -124,47 +124,17 @@ def _fetch_yfinance(symbol: str, start: str, end: str) -> Dict[str, float]:
     return out
 
 
-_PINGZHONG_RE = re.compile(r"Data_netWorthTrend\s*=\s*(\[[^;]+?\]);", re.DOTALL)
-
-
 def _fetch_eastmoney_fund(code: str, start: str, end: str) -> Dict[str, float]:
-    """爬天天基金 pingzhong API 拿历史净值。
+    """天天基金历史单位净值 {date: nav}（start/end 含端点）。
 
-    返回 {date: 单位净值}。该 endpoint 数据从基金成立日起，覆盖完整历史。
+    取数在 utils.eastmoney_fund.fetch_fund_nav_history（与场外基金持仓估值共用一个
+    东方财富适配器）；日期按北京时间标注，不随宿主机时区漂移。
     """
-    url = f"http://fund.eastmoney.com/pingzhongdata/{code}.js"
-    headers = {
-        "Referer": "http://fundf10.eastmoney.com/",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-    }
-    try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        print(f"⚠️ eastmoney fund {code} 拉取失败: {e}")
+    history = fetch_fund_nav_history(code)
+    if not history:
+        print(f"⚠️ eastmoney fund {code} 历史净值拉取失败")
         return {}
-
-    m = _PINGZHONG_RE.search(resp.text)
-    if not m:
-        print(f"⚠️ eastmoney fund {code}: Data_netWorthTrend 字段未找到")
-        return {}
-
-    # JS array 大致是 [{"x":1234567890000,"y":1.0234,...}, ...]
-    try:
-        # 用 eval 太危险，手工解析关键字段
-        items = re.findall(r'\{"x":(\d+),"y":([\d.]+)', m.group(1))
-    except Exception as e:
-        print(f"⚠️ eastmoney fund {code} 解析失败: {e}")
-        return {}
-
-    start_dt = datetime.strptime(start, "%Y-%m-%d")
-    end_dt = datetime.strptime(end, "%Y-%m-%d")
-    out: Dict[str, float] = {}
-    for ts_ms, nav in items:
-        d = datetime.fromtimestamp(int(ts_ms) / 1000)
-        if start_dt <= d <= end_dt:
-            out[d.strftime("%Y-%m-%d")] = float(nav)
-    return out
+    return {d: nav for d, nav in history if start <= d <= end}
 
 
 # ---------- 缓存层 ----------

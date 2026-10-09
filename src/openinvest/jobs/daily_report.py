@@ -47,6 +47,7 @@ from openinvest.utils.exchange_fee import (
     get_macro_data,
 )
 from openinvest.utils.gold_price import format_gold_report, get_gold_snapshot
+from openinvest.utils.quotes import get_quote, is_eastmoney_fund
 
 load_dotenv()
 
@@ -391,6 +392,16 @@ def run(send_email: bool = True, include_report: bool = False) -> Dict[str, Any]
     # gold_now 仍是 GC=F 黄金的"含点差克价"，单独传进 current_prices
     if "GC=F" not in skipped_assets and gold_now > 0:
         current_prices["GC=F"] = gold_now
+    # 场外基金（FUND:xxxxxx）yfinance 没有：不在 target_assets 里的基金持仓走 quote 层的
+    # 东方财富净值估值，与 status / committee 路径同口径（否则下方循环把它当缺价剔除）
+    for h in pm.holdings:
+        sym = str(h.get("symbol", ""))
+        if (h.get("is_tracking_only") or sym in current_prices
+                or sym in skipped_assets or not is_eastmoney_fund(h)):
+            continue
+        quote = get_quote(h)
+        if quote is not None:
+            current_prices[sym] = quote.price
 
     # 2026-05-19: 用 utils.fx.to_base 替代硬编码 AUD 折算。支持任意币种持仓
     # (USD/EUR/JPY/HKD 等)。之前 USD/EUR 持仓被漏算导致 total_assets_cny 偏低 →
