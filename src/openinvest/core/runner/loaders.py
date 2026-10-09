@@ -109,6 +109,7 @@ def _build_default_portfolio_summary(pm: PortfolioManager) -> str:
         from openinvest.utils.exchange_fee import get_history_data
         from openinvest.utils.fx import total_portfolio_value_cny
         from openinvest.utils.portfolio_summary import portfolio_summary_text
+        from openinvest.utils.quotes import get_quote, is_eastmoney_fund
 
         # 一次性拉所有实仓 current_prices。
         # 黄金 GC=F 必须走 get_gold_snapshot 反推 spot_cny_per_gram（与持仓的
@@ -132,6 +133,11 @@ def _build_default_portfolio_summary(pm: PortfolioManager) -> str:
                     snap = get_gold_snapshot(offset_pct=0.0)
                     if snap is not None:
                         current_prices[sym] = float(snap.spot_cny_per_gram)
+                elif is_eastmoney_fund(h):
+                    # 场外基金 yfinance 没有：走 quote 层的东方财富净值，与 status 同口径
+                    quote = get_quote(h)
+                    if quote is not None:
+                        current_prices[sym] = quote.price
                 else:
                     df = get_history_data(sym, "5d")
                     if df is not None and not df.empty:

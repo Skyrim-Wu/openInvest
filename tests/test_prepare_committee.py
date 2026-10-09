@@ -101,3 +101,47 @@ def test_prepare_committee_emits_deterministic_blocks(_mock_world, capfd):
     # regime_brief 仍在（老契约不回归）
     assert out["regime_brief"]
     assert "MARKET SENTIMENT" in ins and "VALUATION" in ins
+
+
+class _FundHoldings(_FakeHoldings):
+    ITEMS = [
+        {"symbol": "TEST.AX", "kind": "etf", "units": 10, "avg_cost": 90.0, "cost_currency": "AUD"},
+        {"symbol": "FUND:123456", "kind": "fund", "units": 100, "avg_cost": 1.5,
+         "cost_currency": "CNY", "proxy_kind": "eastmoney_fund"},
+    ]
+
+    def all(self):
+        return list(self.ITEMS)
+
+    def __iter__(self):
+        return iter(self.ITEMS)
+
+
+def test_prepare_committee_values_fund_holding_with_eastmoney_nav(_mock_world, monkeypatch):
+    """场外基金 yfinance 没有：coordinator 估值必须走 quote 层的东方财富净值（与 status 同口径），
+    不能拿 FUND:xxxxxx 去问 yfinance。"""
+    import openinvest.core.portfolio_manager as pm_mod
+    import openinvest.utils.fx as fx
+    import openinvest.utils.quotes as quotes
+    from openinvest.core.runner.coordinator import prepare_committee_brief
+    from openinvest.utils.eastmoney_fund import FundNavSnapshot
+
+    class _FundPM(_FakePM):
+        def __init__(self):
+            super().__init__()
+            self.holdings = _FundHoldings()
+
+    monkeypatch.setattr(pm_mod, "PortfolioManager", _FundPM)
+    monkeypatch.setattr(quotes, "fetch_fund_nav", lambda symbol: FundNavSnapshot(
+        code="123456", nav=2.0, nav_date="2026-01-05", is_stale=False,
+    ))
+    seen = {}
+
+    def fake_total(pm, current_prices, base="CNY", **kw):
+        seen.update(current_prices)
+        return 0.0, {}
+
+    monkeypatch.setattr(fx, "total_portfolio_value_cny", fake_total)
+    prepare_committee_brief("TEST.AX")
+    assert seen["FUND:123456"] == 2.0
+    assert seen["TEST.AX"] == 299.0   # 非基金仍走 yfinance close（fake_df 末值）
