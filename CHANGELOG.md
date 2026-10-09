@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.3](https://github.com/longsizhuo/openInvest/compare/v0.39.2...v0.39.3) (2026-10-09)
+
+
+### Docs
+
+* **mcp:** mark the issue [#191](https://github.com/longsizhuo/openInvest/issues/191) reports as based on unmerged local changes; 21 tools; Access-only Host note ([#319](https://github.com/longsizhuo/openInvest/issues/319)) ([a1a1088](https://github.com/longsizhuo/openInvest/commit/a1a1088cbe852ece091c16abbe880765b983e089))
+
 ## [0.39.2](https://github.com/longsizhuo/openInvest/compare/v0.39.1...v0.39.2) (2026-10-09)
 
 
