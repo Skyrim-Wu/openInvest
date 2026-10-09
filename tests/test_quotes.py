@@ -158,16 +158,24 @@ def test_get_quote_eastmoney_fund(monkeypatch):
         quotes,
         "fetch_fund_nav",
         lambda symbol: FundNavSnapshot(
-            code="162201", name="宏利成长混合", nav=6.6305,
-            nav_date="2026-08-10", is_stale=False,
+            code="123456", nav=2.0, nav_date="2026-01-05", is_stale=False,
         ),
     )
     q = quotes.get_quote({
-        "symbol": "FUND:162201", "kind": "fund", "cost_currency": "CNY",
+        "symbol": "FUND:123456", "kind": "fund", "cost_currency": "CNY",
         "unit_label": "份", "proxy_kind": "eastmoney_fund",
     })
     assert q is not None
-    assert q.price == 6.6305
+    assert q.price == 2.0
     assert q.currency == "CNY"
-    assert q.last_updated == "2026-08-10"
+    assert q.last_updated == "2026-01-05"
     assert q.extra["source"] == "eastmoney"
+
+
+def test_is_eastmoney_fund_routing():
+    """显式 proxy_kind，或 kind=fund + 六位代码（buy --kind fund 建的仓没有 proxy_kind）。"""
+    assert quotes.is_eastmoney_fund({"symbol": "FUND:123456", "proxy_kind": "eastmoney_fund"})
+    assert quotes.is_eastmoney_fund({"symbol": "FUND:123456", "kind": "fund"})
+    assert quotes.is_eastmoney_fund({"symbol": "123456", "kind": "fund", "proxy_kind": "direct"})
+    assert not quotes.is_eastmoney_fund({"symbol": "510300.SS", "kind": "etf"})
+    assert not quotes.is_eastmoney_fund({"symbol": "AAPL", "kind": "fund"})

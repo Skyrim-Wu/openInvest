@@ -62,12 +62,24 @@ def get_quote(holding: Dict[str, Any]) -> Optional[QuoteSnapshot]:
         return _quote_gold(symbol, holding)
     if proxy_kind == "fx_pair":
         return _quote_fx(symbol, proxy_symbol, holding)
-    if proxy_kind == "eastmoney_fund" or (
-        str(holding.get("kind") or "").lower() == "fund" and extract_fund_code(symbol)
-    ):
+    if is_eastmoney_fund(holding):
         return _quote_eastmoney_fund(symbol, holding)
     # 默认 direct
     return _quote_direct(symbol, proxy_symbol, holding)
+
+
+def is_eastmoney_fund(holding: Dict[str, Any]) -> bool:
+    """场外公募基金持仓（走东方财富净值，不走 yfinance）。
+
+    显式 proxy_kind=eastmoney_fund，或 kind=fund 且 symbol 能解析出六位基金代码。
+    status / committee / daily_report 各自的取价循环都用这个判断，保证同一持仓同口径估值。
+    """
+    if str(holding.get("proxy_kind") or "") == "eastmoney_fund":
+        return True
+    return (
+        str(holding.get("kind") or "").lower() == "fund"
+        and extract_fund_code(str(holding.get("symbol") or "")) is not None
+    )
 
 
 def _quote_eastmoney_fund(
@@ -88,7 +100,6 @@ def _quote_eastmoney_fund(
         extra={
             "source": "eastmoney",
             "fund_code": snap.code,
-            "fund_name": snap.name,
             "nav_type": "confirmed_unit_nav",
         },
     )
