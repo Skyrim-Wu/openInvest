@@ -75,7 +75,7 @@ The underlying data source is yfinance. Common formats:
 | US ETFs | bare ticker | `SPY`, `QQQ` |
 | ASX (Australia) | `XXX.AX` | `NDQ.AX`, `BHP.AX` |
 | HKEX (Hong Kong) | `XXXX.HK` | `0700.HK`, `9988.HK` |
-| Shanghai (SSE) | `XXXXXX.SS` | `600519.SS`, `005827.SS` (mutual fund) |
+| Shanghai (SSE) | `XXXXXX.SS` | `600519.SS`, `510300.SS` (ETF) |
 | Shenzhen (SZSE) | `XXXXXX.SZ` | `000001.SZ` |
 | LSE (London) | `XXX.L` | `BP.L`, `HSBA.L` |
 | TSE (Tokyo) | `XXXX.T` | `7203.T` |
@@ -85,6 +85,19 @@ The underlying data source is yfinance. Common formats:
 
 If the user says "AAPL", use it as-is. If they say "茅台" (Moutai), convert it to `600519.SS`
 first before passing it to the API.
+
+**Chinese off-exchange mutual funds (场外公募基金, bought via Alipay / bank apps)** are not on
+yfinance and must NOT get a `.SS` / `.SZ` suffix. Use `FUND:<6-digit code>` with `--kind fund`:
+
+```bash
+~/.claude/skills/invest/scripts/run.sh buy --symbol FUND:123456 --units 5000 --price 2.0 -c CNY --kind fund --unit-label 份
+```
+
+They are valued at the latest confirmed unit NAV from Eastmoney (not the intraday estimate), so
+`status` / P&L / the committee's portfolio summary all include them. Running the committee *on* a
+fund itself is not supported yet (no price history wired in). If the user only knows the holding
+amount and holding P&L (持有金额 / 持有收益), use `import_holdings` — it derives units and average
+cost from the latest NAV.
 
 ## What yfinance does NOT support
 
