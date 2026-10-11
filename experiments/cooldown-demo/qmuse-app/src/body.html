@@ -1,0 +1,37 @@
+<main>
+  <div class="brand"><span>多空对照</span><a href="https://openinvest.involutionhell.com" target="_blank" rel="noopener">openInvest</a></div>
+  <form id="ask">
+    <input id="code" inputmode="numeric" autocomplete="off" maxlength="6" pattern="\d{6}" placeholder="6 位基金代码，例如 110011" aria-label="基金代码" required>
+    <button id="go" type="submit">复核</button>
+  </form>
+  <p class="hint" id="hint">每人每天 3 次。约 30 秒。</p>
+  <p class="err" id="err" role="alert" hidden></p>
+
+  <section id="rep" hidden>
+    <h1 id="name"></h1>
+    <div class="meta" id="meta"></div>
+    <div class="wt" id="wt" role="status" hidden><b>结论生成中，约 30 秒</b><span id="wt-s"></span><div class="bar"><i id="wt-bar"></i></div></div>
+    <div class="hl wait" id="hl" aria-live="polite"></div>
+    <div class="chips" id="chips"></div>
+
+    <div id="chart-box">
+      <div class="lg" id="lg"></div>
+      <svg id="m" role="img" aria-label="近两年净值、均线与最大回撤区间"></svg>
+      <div class="pl">日涨跌幅</div><svg id="r" aria-hidden="true"></svg>
+      <div class="pl" id="rsi-l"></div><svg id="s" aria-hidden="true"></svg>
+    </div>
+
+    <div id="vs-wrap" hidden>
+      <div class="sh">正反对照</div>
+      <div class="vs" id="vs"></div>
+    </div>
+
+    <div id="dist-wrap" hidden>
+      <div class="sh">历史上同类情形之后</div>
+      <div id="dist"></div>
+      <div class="ax" id="ax"></div>
+    </div>
+  </section>
+
+  <p class="foot">不含买卖建议。灰条为历史 10%–90% 区间，竖线为中位，红线为当前价。数据：东方财富、公开行情。方法见《LLM 多智能体投资系统的架构选择与校准优先评估》。openInvest 开源项目：<a href="https://openinvest.involutionhell.com" target="_blank" rel="noopener">openinvest.involutionhell.com</a></p>
+</main>

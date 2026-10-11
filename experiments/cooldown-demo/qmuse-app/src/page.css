@@ -1,0 +1,58 @@
+:root { --ink:#2C2C2A; --sub:#5F5E5A; --mute:#888780; --rule:#E5E3DC; --grid:#ECEAE4; --hot:#A32D2D; --hotbg:#FCEBEB; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.6 "PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif; font-variant-numeric: tabular-nums; }
+  main { max-width: 760px; margin: 0 auto; padding: 22px 16px 40px; }
+  a { color: inherit; }
+  .brand { font-size: 12px; color: var(--sub); display: flex; justify-content: space-between; }
+  .brand a { text-decoration: none; }
+  form { display: flex; gap: 8px; margin: 18px 0 0; }
+  input { flex: 1; min-width: 0; font: 18px/1.2 inherit; letter-spacing: .1em; padding: 9px 10px; border: 1px solid #D3D1C7; border-radius: 6px; }
+  button { font: 600 15px/1 inherit; padding: 0 16px; border: 0; border-radius: 6px; background: var(--ink); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .hint, .err { font-size: 12px; margin: 6px 0 0; color: var(--mute); }
+  .err { color: var(--hot); }
+  h1 { font-size: 20px; font-weight: 600; margin: 22px 0 2px; }
+  .meta { font-size: 12px; color: var(--sub); }
+  .hl { font-size: 22px; font-weight: 600; margin: 16px 0 8px; min-height: 1.4em; }
+  .hl.wait { font-size: 15px; font-weight: 400; color: var(--sub); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span { font-size: 13px; font-weight: 600; color: var(--hot); background: var(--hotbg); border-radius: 4px; padding: 3px 8px; }
+  .lg { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; margin: 18px 0 4px; }
+  .pl { font-size: 12px; color: var(--sub); margin: 10px 0 2px; }
+  svg { display: block; width: 100%; }
+  .sh { font-size: 14px; font-weight: 600; margin: 26px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--mute); }
+  .vs { display: grid; grid-template-columns: 1fr 1fr; }
+  .vh { font-size: 12px; color: var(--sub); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--rule); }
+  .vs .r { padding-left: 12px; border-left: 2px solid var(--ink); }
+  .vc { font-size: 15px; padding: 9px 10px 9px 0; border-bottom: 1px solid var(--rule); line-height: 1.35; }
+  .vc span { display: block; font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .vc span.hot { color: var(--hot); font-weight: 600; }
+  .vc small { font-size: 11px; color: var(--mute); font-weight: 400; margin-right: 6px; }
+  .hd { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 10px 0; }
+  .hd > span { width: 36px; color: var(--sub); }
+  .hd b { width: 64px; text-align: right; font-weight: 600; }
+  .hd.g b, .hd.g > span { color: #B4B2A9; font-weight: 400; }
+  .rb { position: relative; flex: 1; height: 14px; }
+  .rb i { position: absolute; display: block; }
+  .ax { position: relative; height: 16px; font-size: 11px; color: var(--mute); margin: 0 74px 0 46px; }
+  .ax span { position: absolute; transform: translateX(-50%); }
+  .foot { font-size: 11px; line-height: 1.7; color: var(--mute); margin-top: 22px; }
+  .wt { margin: 16px 0 10px; padding: 12px 14px; border: 1px solid var(--ink); border-radius: 6px; }
+  .wt b { display: block; font-size: 16px; font-weight: 600; }
+  .wt span { display: block; font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .wt .bar { height: 3px; background: var(--rule); margin-top: 10px; }
+  .wt .bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width 1s linear; }
+  .sk { height: 11px; margin: 4px 0; border-radius: 2px; background: var(--grid); animation: b 1.6s ease-in-out infinite; }
+  .sk + .sk { width: 55%; }
+  @keyframes b { 50% { opacity: .35; } }
+  /* 宽屏左右两栏：左结论与正反对照，右交易图。图跨到最后一行 1fr，不把左栏行距撑开 */
+  @media (min-width: 1100px) {
+    main { max-width: 1180px; }
+    form, .hint, .err { max-width: 560px; }
+    #rep:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-rows: repeat(7, auto) 1fr; column-gap: 48px; }
+    #rep > * { grid-column: 1; }
+    #rep > #chart-box { grid-column: 2; grid-row: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } .wt .bar i { transition: none; } }

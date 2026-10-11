@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -47,6 +48,14 @@ _facts_cache: Dict[str, Any] = {}   # code → 当天的 fund_facts 结果（含
 _day = {"d": date.today()}
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+# 比赛表单只收 QMuse 托管的链接：qmuse-app/ 的同一页面挂在 qmuse 域名下跨域调这里。
+# 不带凭证，限额照样按 X-Client-IP 算，放开跨域不多给任何东西
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=os.getenv("COOLDOWN_CORS_ORIGIN_REGEX", r"https://([a-z0-9-]+\.)*qmuse\.(pub|cn|zone)"),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 def _client_ip(request: Request) -> str:

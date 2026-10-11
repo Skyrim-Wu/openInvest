@@ -82,3 +82,15 @@ uv run pytest experiments/cooldown-demo/scripts/ -q
   （从根上消掉 Markdown 渲染差异）。
 - 书记员 prompt 和闸只覆盖中文。
 - 顾问模式下群友可加新闻源，新闻经 Macro 进书记员上下文——注入入口是现实的，闸就是为它设的。
+
+## QMuse 版（比赛表单只收 render.qmuse.pub 链接）
+
+`qmuse-app/` 是同一页面的 React 外壳：`python3 sync.py` 从 `scripts/index.html` 生成样式、标记和逻辑
+（`/api/` 改写成 `${VITE_API_URL}/api/`，默认 `https://fund.longsizhuo.com`），页面不另行维护。
+接口仍在本机演示服务，`server.py` 对 qmuse 域名开放 CORS（不带凭证，限额照旧按 X-Client-IP）。
+
+```bash
+cd experiments/cooldown-demo/qmuse-app
+python3 sync.py && npm install && npm run build   # 本地验证
+qmuse login && qmuse import . --title "多空对照"     # 首次导入建应用，之后同目录再 import 即更新
+```
