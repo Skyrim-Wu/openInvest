@@ -292,6 +292,7 @@ def test_cio_prompt_concentration_directive_on_when_lens_disabled():
     from openinvest.capabilities.committee.cio import build_cio_prompt
     prompt = build_cio_prompt({"symbol": "GC=F", "display_name": "黄金"})
     assert "集中度 lens 已被用户关闭" in prompt
+    assert "不得提及、估算或引用该资产占总资产的比例" in prompt  # 2026-10-11：CIO 曾照抄 Risk 编的"仓位仅占 1.7%"
 
 
 def test_risk_officer_prompt_concentration_directive_both_rounds():
@@ -301,8 +302,42 @@ def test_risk_officer_prompt_concentration_directive_both_rounds():
     set_config_override({"verdict": {"concentration_lens_enabled": True}})
     assert "集中度 lens 已关闭" not in build_risk_officer_prompt(asset)
     set_config_override({"verdict": {"concentration_lens_enabled": False}})
-    assert "集中度 lens 已关闭" in build_risk_officer_prompt(asset, round_label="opening")
-    assert "集中度 lens 已关闭" in build_risk_officer_prompt(asset, round_label="rebuttal")
+    for round_label in ("opening", "rebuttal"):
+        prompt = build_risk_officer_prompt(asset, round_label=round_label)
+        assert "集中度 lens 已关闭" in prompt
+        assert "不要提及、估算或换算该资产占总资产的比例" in prompt
+    # 最坏情景字段是绝对金额（两种 lens 同一模板），不再要"整体损失百分比"——缺数时模型会自编占比
+    opening = build_risk_officer_prompt(asset)
+    assert "WORST_CASE_LOSS_CNY_AT_-20" in opening and "WORST_CASE_LOSS_PCT" not in opening
+
+
+def test_concentration_rules_removed_from_templates_when_lens_off():
+    """2026-10-11 插件实测：lens 关时只在前面加"忽略下方集中度规则"挡不住——Risk 照模板
+    CONCENTRATION_PCT 字段自算 16.7%，CIO 引为"仓位仅 16.7%"。lens 关时模板里集中度专属
+    的字段 / 标准 / 升级规则整块删掉；lens 开时逐字保留。"""
+    from openinvest.capabilities.committee.cio import build_cio_prompt
+    from openinvest.capabilities.committee.risk_officer import build_risk_officer_prompt
+    asset = {"symbol": "GC=F", "display_name": "黄金"}
+    for lens in (True, False):
+        set_config_override({"verdict": {"concentration_lens_enabled": lens}})
+        r1 = build_risk_officer_prompt(asset)
+        r2 = build_risk_officer_prompt(asset, round_label="rebuttal")
+        cio = build_cio_prompt(asset)
+        assert ("CONCENTRATION_PCT: <" in r1) == lens
+        assert ("PWM 行业标准" in r1) == lens and ("CONCENTRATION_PCT > 60%" in r1) == lens
+        assert ("集中度计算修正" in r2) == lens and ("重新评估集中度分母" in r2) == lens
+        assert ("CONCENTRATION_PCT > 60%**: 任何加仓" in cio) == lens
+        assert "<!-- lens:" not in r1 + r2 + cio  # 标记本身从不进 prompt
+
+
+def test_strip_concentration_field_from_risk_output_when_lens_off():
+    from openinvest.core.committee.cio_parse import _strip_concentration_if_lens_off
+    out = "SIGNAL: ok\nSTRENGTH: 2\nCONCENTRATION_PCT: 16.7%\nDRY_POWDER_CNY: 50000\n"
+    set_config_override({"verdict": {"concentration_lens_enabled": False}})
+    assert _strip_concentration_if_lens_off(out) == "SIGNAL: ok\nSTRENGTH: 2\nDRY_POWDER_CNY: 50000\n"
+    assert "CONCENTRATION" not in _strip_concentration_if_lens_off("**CONCENTRATION_PCT**：16.7%")
+    set_config_override({"verdict": {"concentration_lens_enabled": True}})
+    assert _strip_concentration_if_lens_off(out) == out
 
 
 def test_committee_prompts_follow_english_mode_and_keep_parser_markers():

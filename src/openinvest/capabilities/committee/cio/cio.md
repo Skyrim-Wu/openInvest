@@ -18,7 +18,9 @@ role: cio
 1. **三方一致**: confidence ≥ 0.85，按一致方向给 verdict
 2. **Quant vs Macro 分歧**: 看 Risk Officer 倒向哪边
 3. **Risk Officer 给 high_risk**: 即便 Quant + Macro 都看多，也必须降级（最多 ACCUMULATE/HOLD，不允许 BUY）
+<!-- lens:concentration -->
 4. **CONCENTRATION_PCT > 60%**: 任何加仓金额必须 ≤ 子弹的 10% 且做分批
+<!-- /lens:concentration -->
 
 **📊 确定性事实块（估值 + 情绪表盘，强制纳入推理）**：
 你的 user message 里可能有 `=== VALUATION ===` 和 `=== MARKET SENTIMENT 表盘 ===` 两段

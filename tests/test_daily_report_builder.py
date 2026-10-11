@@ -247,6 +247,50 @@ class TestPortfolioSummaryText:
         assert "集中度" not in text, "lens OFF 时集中度不应出现在 portfolio_summary"
         assert "黄金" in text and "浮盈" in text  # 其余持仓信息仍在
 
+    def test_lens_off_gives_absolute_stress_amounts_not_share(self, tmp_path):
+        """2026-10-11 插件实测回归（虚构用户：¥50,000 现金 + ¥10,000 基金，真实占比 16.7%）：
+        lens 关时 summary 没有市值数字，Risk 为填"跌 20% 整体损失 %"自编"约占总资产 1.7%"，
+        CIO 照抄。修法：给绝对市值 + 再跌 10/20/35% 的损失金额，仍不给占比（ADR-020 前提不变）。"""
+        holdings = [
+            {"symbol": "FUND01", "kind": "fund", "units": 10000.0, "unit_label": "份",
+             "avg_cost": 1.0, "cost_currency": "CNY", "display_name": "某基金"},
+        ]
+        pm = _make_pm(tmp_path, cash={"CNY": 50000.0}, holdings=holdings)
+        text = portfolio_summary_text(pm, total_assets_cny=60000.0, current_prices={"FUND01": 1.0})
+        assert "CNY 市值 ¥10,000" in text
+        assert "现价再跌 10% / 20% / 35% 损失 ¥1,000 / ¥2,000 / ¥3,500" in text
+        assert "集中度" not in text and "16.7" not in text  # 占比既不渲染也不能被拼出来
+
+    def test_lens_on_keeps_concentration_and_appends_stress(self, tmp_path):
+        """lens 开：集中度行逐字不变（SENTINEL 提取照常），压力测试金额追加在后。"""
+        from openinvest.core.committee.cio_parse import _extract_concentration_from_summary
+        from openinvest.core.config import set_config_override
+        set_config_override({"verdict": {"concentration_lens_enabled": True}})
+        holdings = [
+            {"symbol": "FUND01", "kind": "fund", "units": 10000.0, "unit_label": "份",
+             "avg_cost": 1.0, "cost_currency": "CNY", "display_name": "某基金"},
+        ]
+        pm = _make_pm(tmp_path, cash={"CNY": 50000.0}, holdings=holdings)
+        text = portfolio_summary_text(pm, total_assets_cny=60000.0, current_prices={"FUND01": 1.0})
+        assert "**集中度 16.7%** (CNY 市值 ¥10,000 / 总资产 ¥60,000)，现价再跌 10% / 20% / 35% 损失 ¥1,000 / ¥2,000 / ¥3,500" in text
+        assert _extract_concentration_from_summary(text, "FUND01") == 16.7
+
+    def test_fx_unavailable_never_renders_fake_zero(self, tmp_path, monkeypatch):
+        """该腿拉不到汇率（to_base=None）：lens 开不得渲染伪造的"集中度 0.0%"；两种 lens 都不出假金额。"""
+        import openinvest.utils.fx as fx
+        from openinvest.core.config import set_config_override
+        monkeypatch.setattr(fx, "to_base", lambda *a, **k: None)
+        holdings = [
+            {"symbol": "AAPL", "kind": "equity", "units": 10.0, "unit_label": "股",
+             "avg_cost": 150.0, "cost_currency": "USD", "display_name": "Apple"},
+        ]
+        pm = _make_pm(tmp_path, cash={"CNY": 50000.0}, holdings=holdings)
+        for lens in (True, False):
+            set_config_override({"verdict": {"concentration_lens_enabled": lens}})
+            text = portfolio_summary_text(pm, total_assets_cny=50000.0, current_prices={"AAPL": 200.0})
+            assert "集中度 0.0%" not in text and "损失 ¥" not in text and "CNY 市值 ¥0" not in text
+            assert ("暂不可计算" in text) == lens
+
 
 # ============ 任务 3d：assemble_full_report ============
 

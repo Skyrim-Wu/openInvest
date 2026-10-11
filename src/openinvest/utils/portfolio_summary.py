@@ -132,21 +132,28 @@ def portfolio_summary_text(
             f"现价 {ccy_symbol}{cur:.2f}, "
             f"浮盈 {pnl_pct:+.2f}% (≈ {ccy_symbol}{pnl_local:+,.2f} {ccy})"
         )
+        # 该腿汇率拉不到时 value_cny=None：市值 / 集中度 / 压力测试都标"暂不可计算"，不当 0 用
+        value_cny = holding_values_cny.get(sym)
         # 集中度 = 该 asset CNY 市值 / total_assets_cny —— 仅 lens 开启时渲染（ADR-020）
         if _show_conc:
-            value_cny = holding_values_cny.get(sym, 0.0)
-            if total_ok:
+            if total_ok and value_cny is not None:
                 conc_pct = value_cny / total_assets_cny * 100
                 line += (
                     f", **集中度 {conc_pct:.1f}%** "
                     f"(CNY 市值 ¥{value_cny:,.0f} / 总资产 ¥{total_assets_cny:,.0f})"
                 )
             else:
-                # total 不可用（NaN/缺）：绝不伪造 0.0%，输出可见降级标记促人工复核
-                line += (
-                    f", **集中度 暂不可计算**（总资产不可用，请勿据此做集中度判断；"
-                    f"CNY 市值 ¥{value_cny:,.0f}）"
-                )
+                # total 或该腿汇率不可用：绝不伪造 0.0%，输出可见降级标记促人工复核
+                mv = f"；CNY 市值 ¥{value_cny:,.0f}" if value_cny is not None else ""
+                line += f", **集中度 暂不可计算**（总资产或汇率不可用，请勿估算占比{mv}）"
+        elif value_cny is not None:
+            line += f", CNY 市值 ¥{value_cny:,.0f}"
+        # 压力测试用绝对金额，两种 lens 都给：Risk 模板的最坏情景字段照抄它。
+        # 2026-10-11：lens 关时没有市值数字，Risk 为填"跌 20% 整体损失 %"自己编占比
+        # （虚构画像真值 16.7% 编成 1.7%，CIO 照抄"仓位仅占 1.7%"）
+        if value_cny is not None:
+            a, b, c = (value_cny * k for k in (0.10, 0.20, 0.35))
+            line += f"，现价再跌 10% / 20% / 35% 损失 ¥{a:,.0f} / ¥{b:,.0f} / ¥{c:,.0f}"
         lines.append(line)
 
     return "\n".join(lines) + "\n"

@@ -30,3 +30,19 @@
 - 默认用户不再收到"集中度超配 → 减仓"建议；不会再因 watchlist 被当净资产而误判。
 - #89 的 NaN-leg 集中度误算对默认用户**不再有 verdict 影响**（lens off 时该数字不驱动任何决策）。它仅作为 opt-in 用户的已知边界保留——后续可单独修（缺价腿用 last close / 均价计入分母，而非整条剔除），但不再是反复打补丁的压力点。
 - 行为变更：相关测试改为显式开 lens 才测 on-path；`test_concentration_lens_off_by_default_forces_hold` 守新默认。
+
+## 修订（2026-10-11）：lens 关时压力测试用绝对金额，仍不给占比
+
+插件实测（虚构用户：¥50,000 现金 + ¥10,000 基金，真实占比 16.7%）发现：lens 关时 `portfolio_summary_text` 不给该持仓的任何市值数字，而 Risk 模板要求填 `WORST_CASE_LOSS_PCT_AT_-20`（"该资产跌 20%，整体损失百分比"，本质是占比 × 20%）。模型只能自算，编出"约占总资产 1.7%"，CIO 照抄成"仓位仅占 1.7%"。
+
+改为：
+
+- `portfolio_summary_text` 两种 lens 都给该持仓的 **CNY 市值**和**现价再跌 10% / 20% / 35% 的损失金额**（确定性计算）；lens 关时**仍不渲染占比**。
+- Risk 模板最坏情景字段改为 `WORST_CASE_LOSS_CNY_AT_-20`，照抄上述金额。
+- 模板里只在 lens 开时成立的规则用 `<!-- lens:concentration -->` 包住（Risk 两轮的集中度关注项 / `CONCENTRATION_PCT` 字段 / `>60%` 规则 / 分母修正，CIO 规则 4），`capabilities.loader.apply_lens_blocks` 在 lens 关时整块删掉。实测只在前面加"忽略下方集中度规则"挡不住：给了市值后 Risk 照模板字段自算 16.7%、写"远低于 25-35% 上限"，CIO 引为"仓位仅 16.7%"。
+- 确定性兜底：lens 关时 `debate` 把 Risk 输出里的 `CONCENTRATION_PCT` 行删掉再交给 CIO（`cio_parse._strip_concentration_if_lens_off`）。散文里的占比删不掉，靠 prompt。
+- lens 关指令：Risk 不得提及、估算或换算占比，ONE_LINER 的建仓上限按子弹表述；CIO 不得提及、估算或引用占比（包括 Risk 报告里出现的）。
+- 该腿汇率不可用时市值 / 集中度 / 压力测试都标"暂不可计算"——此前 lens 开会渲染伪造的 `集中度 0.0%`。
+- Sanity 4（lens 关 + `TRIM_REASON=concentration` → force-HOLD）不变。
+
+**为什么不改成"lens 关也渲染真实占比、只标注仅作背景"**（openInvest#356 初版）：本 ADR 的前提是用户录入的常是部分资产，占比不等于身家占比。该方案的插件实测里，65% 画像下 Risk 仍套用 `>60%` 规则写"偏高，优先分散"，CIO 写"降到 50% 以下"，裁决由 ACCUMULATE 变 HOLD——默认用户的加仓被一个本 ADR 认定无意义的数字压住；cron 路径还有 #89 的缺价腿分母问题，渲染出来的占比会虚高。绝对金额对部分录入的用户同样成立，不需要分母。

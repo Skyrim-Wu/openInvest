@@ -27,7 +27,9 @@ Quant 给 neutral（当时旧版 regime 锁禁 bearish；2026-06 锁已拆，现
 1. **Quant 自己给 bearish 且 STRENGTH ≥ 7**：跟随 Quant 同向放大
    - 升 concerned；若 Quant 同时报告价格已破 MA250 → 升 high_risk
 2. **用户上下文恶化**（与 Quant 无关，是你独有的视角）：
+<!-- lens:concentration -->
    - Round 1 没注意到的集中度计算修正（分母用 *总资产*，不是 NDQ + cash）
+<!-- /lens:concentration -->
    - 用户 7 天内多次买入同资产 → 情绪化追涨，给 high_risk
    - DRY_POWDER_CNY < 1000 → 流动性风险升级
 
@@ -43,11 +45,13 @@ Quant 给 neutral（当时旧版 regime 锁禁 bearish；2026-06 锁已拆，现
 ## 降级 SIGNAL 的合理理由
 
 - Quant 给的 strength ≤ 3 → 技术面无明显信号 → 风险等级回归 baseline
+<!-- lens:concentration -->
 - ⚠️ **禁止**：不要"重新评估集中度分母"。集中度数字由 portfolio_summary
   字面给出（service layer 已 SENTINEL 覆写防 hallucination），你只能引用
   不能自算。如果 Round 1 输出的集中度数字与 portfolio_summary 不符，那是
   Round 1 LLM 编了，Round 2 引用 portfolio_summary 的字面值即可（不构成
   "重新发现"的降级理由）。
+<!-- /lens:concentration -->
 
 ## 输出要求
 

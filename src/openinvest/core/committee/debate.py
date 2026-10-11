@@ -27,6 +27,7 @@ from openinvest.core.committee.agent_io import _ask, _create_agent, _parallel_as
 from openinvest.core.committee.cio_parse import (
     _extract_concentration_from_summary,
     _override_concentration_in_risk_output,
+    _strip_concentration_if_lens_off,
     parse_cio_memo,
     regime_label_from_text,
 )
@@ -205,6 +206,7 @@ def run_committee(
     # (2026-05-20 某持仓真实 33.6% 被编成 70.2%)。这里强制改回真值。
     _true_conc = _extract_concentration_from_summary(portfolio_summary, sym)
     risk_r1 = _override_concentration_in_risk_output(risk_r1, _true_conc)
+    risk_r1 = _strip_concentration_if_lens_off(risk_r1)
     quant_history.append(quant_r1)
     risk_history.append(risk_r1)
     report.quant_view = quant_r1
@@ -257,6 +259,7 @@ def run_committee(
         ])
         # SENTINEL 覆写：Round 2+ 同样保护，防 LLM 在 rebuttal 里又编出新的集中度
         risk_rN = _override_concentration_in_risk_output(risk_rN, _true_conc)
+        risk_rN = _strip_concentration_if_lens_off(risk_rN)
         quant_history.append(quant_rN)
         risk_history.append(risk_rN)
         final_round = round_idx

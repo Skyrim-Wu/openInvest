@@ -16,7 +16,7 @@ from openinvest.capabilities.committee.i18n import (
     build_output_language_directive,
     localize_prompt_output_requirements,
 )
-from openinvest.capabilities.loader import load_skill
+from openinvest.capabilities.loader import apply_lens_blocks, load_skill
 
 
 def build_risk_officer_prompt(asset: Dict[str, Any], round_label: str = "opening") -> str:
@@ -33,23 +33,26 @@ def build_risk_officer_prompt(asset: Dict[str, Any], round_label: str = "opening
         asset_name=asset_name,
         asset_symbol=asset["symbol"],
     )
+    lens_on = bool(load_config().verdict.concentration_lens_enabled)
+    # 模板里集中度专属的字段 / 标准 / 升级规则用 lens 标记包住，lens 关时整块删掉
+    prompt = apply_lens_blocks(prompt, "concentration", lens_on)
     prompt = localize_prompt_output_requirements(prompt)
     prompt = (
         f"{build_output_language_directive(artifact='analysis')}\n"
         f"{build_field_value_language_directive()}\n\n{prompt}"
     )
-    # 集中度 lens 关闭时（单资产/刻意集中策略）彻底隐藏集中度。前置注入而非占位符：一次覆盖
-    # opening + rebuttal 两个 SKILL 文件，不会漏某一轮。配合 portfolio_summary 已不喂集中度数字
-    # （单一源 gate），这里再令模型省略字段 + 不提及，OFF 时集中度从报告彻底消失。
-    if not load_config().verdict.concentration_lens_enabled:
+    # 集中度 lens 关闭时（ADR-020 默认）不给、也不许估算占比——用户录入的常只是部分资产。
+    # 前置注入而非占位符：一次覆盖 opening + rebuttal 两个 SKILL 文件，不会漏某一轮。
+    # 压力测试改用 portfolio_summary 给的绝对损失金额（2026-10-11：缺这个数时模型自编占比）。
+    if not lens_on:
         directive = bilingual(
-            "**🚫 集中度 lens 已关闭（单资产 / 刻意集中策略）**：用户上下文里已【不含】集中度数字。"
-            "**不要输出 CONCENTRATION_PCT 字段，也不要在分析/理由里提及集中度、仓位占比、超配**"
-            "（跳过下方模板的 CONCENTRATION_PCT 与 `>60% 至少 concerned` 规则）。"
+            "**🚫 集中度 lens 已关闭（默认；用户录入的可能只是部分资产）**：用户上下文【不含】集中度数字。"
+            "**不要输出 CONCENTRATION_PCT 字段，也不要提及、估算或换算该资产占总资产的比例**（压力测试同样只用金额："
+            "WORST_CASE_LOSS_CNY_AT_-20 照抄 portfolio_summary 的损失金额；ONE_LINER 的建仓上限按子弹 DRY_POWDER_CNY 表述，不按占总资产比例）。"
             "其余风险维度（波动 / 回撤 / 止损 / 现金流动性 / 追涨）照常评估。\n\n",
-            "**🚫 The concentration lens has been disabled (single-asset / deliberately concentrated strategy)**: the user context no longer includes concentration figures. "
-            "**Do not output the CONCENTRATION_PCT field, and do not mention concentration, position share, or overweight in the analysis/reasoning** "
-            "(skip the CONCENTRATION_PCT and `>60% at least concerned` rules in the template below). "
+            "**🚫 The concentration lens is disabled (default; the user may have recorded only part of their assets)**: the user context contains no concentration figures. "
+            "**Do not output the CONCENTRATION_PCT field, and do not mention, estimate, or convert this asset's share of total assets** (stress tests use amounts only: "
+            "copy the loss amount from portfolio_summary into WORST_CASE_LOSS_CNY_AT_-20; state the ONE_LINER position cap against DRY_POWDER_CNY, not as a share of total assets). "
             "Evaluate the other risk dimensions (volatility / drawdown / stop-loss / cash liquidity / chasing rallies) as usual.\n\n",
         )
         prompt = directive + prompt

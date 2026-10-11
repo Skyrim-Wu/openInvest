@@ -399,6 +399,18 @@ _RISK_CONCENTRATION_RE = re.compile(
 )
 
 
+def _strip_concentration_if_lens_off(risk_output: str) -> str:
+    """集中度 lens 关（ADR-020 默认）时删掉 Risk 输出里的 CONCENTRATION_PCT 行。
+
+    模板在 lens 关时已不要这个字段；模型照填（2026-10-11 插件实测：自算 16.7% 写进字段，
+    CIO 引为"仓位仅 16.7%"）也不让它流到 CIO。散文里的占比删不掉，靠 prompt 约束。
+    """
+    from openinvest.core.config import load_config
+    if not risk_output or load_config().verdict.concentration_lens_enabled:
+        return risk_output
+    return re.sub(r"(?m)^[ \t]*[*_`]*CONCENTRATION_PCT[*_`]*[ \t]*[:：].*(?:\n|$)", "", risk_output)
+
+
 def _override_concentration_in_risk_output(
     risk_output: str, true_pct: Optional[float],
 ) -> str:
@@ -458,4 +470,5 @@ __all__ = [
     "_extract_concentration_from_summary",
     "_RISK_CONCENTRATION_RE",
     "_override_concentration_in_risk_output",
+    "_strip_concentration_if_lens_off",
 ]

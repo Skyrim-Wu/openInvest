@@ -681,8 +681,11 @@ def test_run_committee_overrides_risk_concentration_end_to_end(monkeypatch):
     """端到端：mock LLM 让 Risk Officer 故意编 70.2%，验证最终 risk_view 是 33.6%
 
     这是真正的 SENTINEL 守卫——如果未来有人删了 _override 调用，本测会红。
+    覆写是 lens 开时的机制（lens 关时 summary 无集中度、字段整行删掉，见 ADR-020 修订）。
     """
     from openinvest.core import committee as cmt
+    from openinvest.core.config import set_config_override
+    set_config_override({"verdict": {"concentration_lens_enabled": True}})
 
     # 构造典型 portfolio_summary（与 utils.portfolio_summary 输出格式一致）
     fake_summary = (

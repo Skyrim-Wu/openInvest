@@ -37,6 +37,7 @@
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -79,6 +80,18 @@ def _render_placeholders(body: str, variables: Dict[str, Any]) -> str:
     for key, value in variables.items():
         body = body.replace("{{" + key + "}}", str(value))
     return body
+
+
+def apply_lens_blocks(prompt: str, name: str, enabled: bool) -> str:
+    """模板里 `<!-- lens:<name> -->` … `<!-- /lens:<name> -->` 包住只在该 lens 开启时成立的规则：
+    开 → 去掉标记、内容原样保留；关 → 整块删掉。
+
+    2026-10-11：集中度 lens 关时只在 prompt 前加"忽略下方集中度规则"，模型仍按模板的
+    CONCENTRATION_PCT 字段和 PWM 标准自算占比、CIO 引用——规则留在模板里就挡不住。
+    """
+    tag = re.escape(name)
+    pattern = re.compile(rf"<!-- lens:{tag} -->\n?(.*?)<!-- /lens:{tag} -->\n?", re.S)
+    return pattern.sub(lambda m: m.group(1) if enabled else "", prompt)
 
 
 def load_skill(
@@ -129,4 +142,4 @@ def load_skill(
     return _render_placeholders(body, variables)
 
 
-__all__ = ["load_skill"]
+__all__ = ["apply_lens_blocks", "load_skill"]
