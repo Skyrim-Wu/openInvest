@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.1](https://github.com/longsizhuo/openInvest/compare/v0.41.0...v0.41.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **fund:** fall back to pingzhongdata NAV when lsjz fails; name unconverted funds on import ([f08b947](https://github.com/longsizhuo/openInvest/commit/f08b9470c86ffed4b2eed7d268bd2cd3a7cbc233))
+
 ## [0.41.0](https://github.com/longsizhuo/openInvest/compare/v0.40.4...v0.41.0) (2026-10-11)
 
 
