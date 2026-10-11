@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.2](https://github.com/longsizhuo/openInvest/compare/v0.41.1...v0.41.2) (2026-10-11)
+
+
+### Bug Fixes
+
+* **committee:** lens-off stress test in absolute CNY; drop concentration rules from prompts instead of hiding them ([3ac0ef2](https://github.com/longsizhuo/openInvest/commit/3ac0ef2edfb65015f812dd882d0890b573b9cc14))
+
 ## [0.41.1](https://github.com/longsizhuo/openInvest/compare/v0.41.0...v0.41.1) (2026-10-11)
 
 
