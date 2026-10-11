@@ -46,9 +46,23 @@
   .ax { position: relative; height: 16px; font-size: 11px; color: var(--mute); margin: 0 74px 0 46px; }
   .ax span { position: absolute; transform: translateX(-50%); }
   .foot { font-size: 11px; line-height: 1.7; color: var(--mute); margin-top: 22px; }
-  .wait-dot { display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--sub); margin-right: .5em; animation: b 2s ease-in-out infinite; }
-  @keyframes b { 50% { opacity: .2; } }
-  @media (prefers-reduced-motion: reduce) { .wait-dot { animation: none; } }
+  .wt { margin: 16px 0 10px; padding: 12px 14px; border: 1px solid var(--ink); border-radius: 6px; }
+  .wt b { display: block; font-size: 16px; font-weight: 600; }
+  .wt span { display: block; font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .wt .bar { height: 3px; background: var(--rule); margin-top: 10px; }
+  .wt .bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width 1s linear; }
+  .sk { height: 11px; margin: 4px 0; border-radius: 2px; background: var(--grid); animation: b 1.6s ease-in-out infinite; }
+  .sk + .sk { width: 55%; }
+  @keyframes b { 50% { opacity: .35; } }
+  /* 宽屏左右两栏：左结论与正反对照，右交易图。图跨到最后一行 1fr，不把左栏行距撑开 */
+  @media (min-width: 1100px) {
+    main { max-width: 1180px; }
+    form, .hint, .err { max-width: 560px; }
+    #rep:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-rows: repeat(7, auto) 1fr; column-gap: 48px; }
+    #rep > * { grid-column: 1; }
+    #rep > #chart-box { grid-column: 2; grid-row: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } .wt .bar i { transition: none; } }
 </style>
 </head>
 <body>
@@ -58,19 +72,22 @@
     <input id="code" inputmode="numeric" autocomplete="off" maxlength="6" pattern="\d{6}" placeholder="6 位基金代码，例如 110011" aria-label="基金代码" required>
     <button id="go" type="submit">复核</button>
   </form>
-  <p class="hint" id="hint">每人每天 3 次。约 20 秒。</p>
+  <p class="hint" id="hint">每人每天 3 次。约 30 秒。</p>
   <p class="err" id="err" role="alert" hidden></p>
 
   <section id="rep" hidden>
     <h1 id="name"></h1>
     <div class="meta" id="meta"></div>
+    <div class="wt" id="wt" role="status" hidden><b>结论生成中，约 30 秒</b><span id="wt-s"></span><div class="bar"><i id="wt-bar"></i></div></div>
     <div class="hl wait" id="hl" aria-live="polite"></div>
     <div class="chips" id="chips"></div>
 
-    <div class="lg" id="lg"></div>
-    <svg id="m" role="img" aria-label="近两年净值、均线与最大回撤区间"></svg>
-    <div class="pl">日涨跌幅</div><svg id="r" aria-hidden="true"></svg>
-    <div class="pl" id="rsi-l"></div><svg id="s" aria-hidden="true"></svg>
+    <div id="chart-box">
+      <div class="lg" id="lg"></div>
+      <svg id="m" role="img" aria-label="近两年净值、均线与最大回撤区间"></svg>
+      <div class="pl">日涨跌幅</div><svg id="r" aria-hidden="true"></svg>
+      <div class="pl" id="rsi-l"></div><svg id="s" aria-hidden="true"></svg>
+    </div>
 
     <div id="vs-wrap" hidden>
       <div class="sh">正反对照</div>
@@ -89,7 +106,24 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const T = { nav: "#2C2C2A", ma20: "#BA7517", ma60: "#D4537E", ma120: "#378ADD", ma250: "#7F77DD", up: "#E24B4A", down: "#1D9E75", grid: "#ECEAE4", axis: "#888780", band: "#F1EFE8", rsi: "#534AB7" };
-let timer = null, lastFacts = null;
+let timer = null, lastFacts = null, tick = null;
+const EXPECT = 30;   // 秒；一次委员会实测 20–40 秒
+
+// 等待态：计时 + 进度条 + 正反对照骨架，让人知道下面还有内容。进度条按经验时长走到 90% 停住，不假装精确
+function startWait() {
+  const t0 = Date.now(); $("wt").hidden = false; $("hl").textContent = ""; $("hl").hidden = true;
+  const vs = $("vs"); vs.textContent = "";
+  vs.append(el("div", "vh", "支持"), el("div", "vh r", "反对"));
+  for (let i = 0; i < 3; i++) ["vc", "vc r"].forEach((cls) => { const c = el("div", cls); c.append(el("div", "sk"), el("div", "sk")); vs.append(c); });
+  $("vs-wrap").hidden = false;
+  const step = (state) => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    $("wt-s").textContent = (state === "queued" ? "排队中，前面有人在跑" : "宏观、量化、风险三个角色正在交叉质询") + `　已用 ${s} 秒`;
+    $("wt-bar").style.width = Math.min(90, s / EXPECT * 90) + "%";
+  };
+  clearInterval(tick); step("running"); tick = setInterval(() => step($("wt").dataset.state), 1000);
+}
+function stopWait() { clearInterval(tick); $("wt").hidden = true; $("hl").hidden = false; }
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function size(svg, h) { const w = Math.max(240, Math.round(svg.clientWidth)); svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("height", h); return w; }
@@ -146,14 +180,14 @@ function showFacts(f) {
   lastFacts = f;
   $("name").textContent = f.name;
   $("meta").textContent = `${f.code}　净值 ${f.nav}　${f.nav_date}`;
-  const hl = $("hl"); hl.className = "hl wait"; hl.textContent = ""; hl.append(el("span", "wait-dot"), "宏观、量化、风险三个角色正在交叉质询");
   const chips = $("chips"); chips.textContent = ""; f.chips.forEach((c) => chips.append(el("span", null, c)));
-  $("vs-wrap").hidden = true; $("rep").hidden = false;
+  $("rep").hidden = false; startWait();
   drawChart(f.chart); drawDist(f.dist);
 }
 
 // 模型文本一律走 textContent，不进 innerHTML
 function showResult(res) {
+  stopWait();
   const hl = $("hl"); hl.className = "hl"; hl.textContent = res.headline;
   const vs = $("vs"); vs.textContent = "";
   vs.append(el("div", "vh", "支持"), el("div", "vh r", "反对"));
@@ -177,9 +211,9 @@ function finish() { $("go").disabled = false; }
 
 async function poll(id) {
   const r = await fetch(`/api/debate/${id}`); const j = await r.json();
-  if (!r.ok) { showError(j.detail || "查询失败，稍后再试"); $("hl").textContent = ""; return finish(); }
-  if (j.status !== "done") { timer = setTimeout(() => poll(id), 2500); return; }
-  if (j.result.headline) showResult(j.result); else { $("hl").className = "hl wait"; $("hl").textContent = j.result.error || "这次辩论没跑成，稍后再试"; }
+  if (!r.ok) { stopWait(); $("vs-wrap").hidden = true; showError(j.detail || "查询失败，稍后再试"); $("hl").textContent = ""; return finish(); }
+  if (j.status !== "done") { $("wt").dataset.state = j.status; timer = setTimeout(() => poll(id), 2500); return; }
+  if (j.result.headline) showResult(j.result); else { stopWait(); $("vs-wrap").hidden = true; $("hl").className = "hl wait"; $("hl").textContent = j.result.error || "这次辩论没跑成，稍后再试"; }
   finish();
 }
 
